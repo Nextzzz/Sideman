@@ -1,0 +1,11 @@
+numpy
+scipy
+matplotlib
+soundfile
+sounddevice
+
+# Later phases (may require Python 3.12/3.13 until numba supports 3.14):
+# librosa
+# madmom
+# mido
+# pyfluidsynth
