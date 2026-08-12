@@ -7,6 +7,9 @@ import os
 import sys
 import time
 
+# Work from the repo root no matter where the script is launched from.
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import sounddevice as sd
 import soundfile as sf

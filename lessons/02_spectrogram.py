@@ -10,6 +10,11 @@ Run:
 import os
 import sys
 
+# Work from the repo root and find the sideman package without installation.
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(_ROOT)
+sys.path.insert(0, _ROOT)
+
 import numpy as np
 import soundfile as sf
 import matplotlib

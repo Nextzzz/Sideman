@@ -35,6 +35,13 @@ See [ROADMAP.md](ROADMAP.md) for the build plan.
 ## Setup
 
 ```
+pip install -r requirements.txt
+python lessons\00_check_setup.py
+```
+
+Lesson scripts can be run from any directory — they anchor themselves to the repo root. A virtualenv works too, if you prefer one:
+
+```
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 .venv\Scripts\python lessons\00_check_setup.py
