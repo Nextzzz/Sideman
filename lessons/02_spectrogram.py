@@ -1,7 +1,8 @@
 """Lesson 0: waveform + spectrogram with a hand-rolled STFT.
 
-No librosa here on purpose: the STFT below is the foundation of everything
-this project will do, so we build it from numpy and understand every line.
+No librosa here on purpose: the STFT (see sideman/dsp.py) is the foundation
+of everything this project will do, so we build it from numpy and
+understand every line.
 
 Run:
     python lessons/02_spectrogram.py audio/take_XXXX.wav
@@ -16,33 +17,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-N_FFT = 2048   # frame length: 2048/44100 = 46 ms -> frequency resolution ~21.5 Hz
-HOP = 512      # frame step: 12 ms -> 75% overlap between frames
+from sideman.dsp import HOP, N_FFT, stft, to_db
+
 FMAX = 4000    # guitar fundamentals + first harmonics live below this
-
-
-def stft(x: np.ndarray, n_fft: int = N_FFT, hop: int = HOP) -> np.ndarray:
-    """Short-Time Fourier Transform, the honest way.
-
-    Returns complex matrix of shape (n_frames, n_fft // 2 + 1):
-    one row per time frame, one column per frequency bin.
-    """
-    # Hann window: smooth bell curve, kills spectral leakage at frame edges.
-    window = np.hanning(n_fft)
-    n_frames = 1 + (len(x) - n_fft) // hop
-    frames = np.stack(
-        [x[i * hop : i * hop + n_fft] * window for i in range(n_frames)]
-    )
-    # rfft: FFT for real input — only non-negative frequencies are returned.
-    return np.fft.rfft(frames, axis=1)
-
-
-def to_db(spectrum: np.ndarray, floor_db: float = -80.0) -> np.ndarray:
-    """Magnitude -> decibels relative to the loudest bin, clipped at floor_db."""
-    magnitude = np.abs(spectrum)
-    db = 20.0 * np.log10(magnitude + 1e-10)
-    db -= db.max()
-    return np.maximum(db, floor_db)
 
 
 def main() -> None:

@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+sideman/__init__.py
+sideman/dsp.py
+sideman/synth.py
+sideman.egg-info/PKG-INFO
+sideman.egg-info/SOURCES.txt
+sideman.egg-info/dependency_links.txt
+sideman.egg-info/top_level.txt
