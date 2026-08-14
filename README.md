@@ -1,48 +1,50 @@
-# sideman
+# Sideman
 
 > *sideman (n.) — a professional musician hired to accompany a soloist or bandleader.*
 
-An AI band member that **listens to you play guitar and follows you in real time** — matching your tempo, harmony and dynamics like a live rhythm section, instead of forcing you to follow a static backing track.
+Chord and rhythm analysis for guitarists: a tuner, chord recognition for any
+audio (file / recording / YouTube link), and **live chord detection while you
+play**. Desktop app now; the analysis core is written to be ported to mobile
+(.NET MAUI) unchanged. Future direction: an AI band member that follows your
+playing in real time.
 
-**Status: work in progress.** Currently building the analysis foundation (offline audio analysis → real-time tracking → adaptive accompaniment). This repository doubles as a learning journal: every algorithm is first implemented by hand before reaching for a library.
+## Features
 
-## Why
+- **Tuner** — YIN pitch detection, ±2 cents on synthetic references.
+- **Song analysis** — open wav/mp3/m4a, record from the mic, or paste a
+  YouTube link: chord timeline (24 major/minor triads + "no chord"),
+  tempo and beat grid.
+- **Live chords** — play into the mic and see the chord in ~150 ms:
+  causal Viterbi filtering over the same emission model as offline analysis.
 
-- Backing tracks don't listen. Every existing tool (Band-in-a-Box, iReal Pro, Moises AI Studio) either plays at a fixed tempo or generates parts *after* you record.
-- A real band member doesn't react — they **predict**. The core of this project is a predictive model of the player (tempo phase-locking + chord anticipation), with generation scheduled ahead of time and gently corrected.
-- 90% of new guitarists quit within a year (Fender). A band that is always ready to play with you — and never plays too fast — is a retention machine.
-
-## Architecture (target)
-
-```
-mic → ring buffer → [analysis: onsets / beats / chroma→chords]
-                  → [musician model: tempo PLL + chord prediction]
-                  → [accompaniment: style patterns scheduled 1-2 beats ahead]
-                  → MIDI → synth → speakers
-```
-
-## Repository layout
-
-| Path | What |
-|---|---|
-| `lessons/` | Numbered, runnable scripts — one concept each, hand-rolled DSP first |
-| `docs/` | Theory notes for each lesson |
-| `audio/` | Local recordings (not committed) |
-| `output/` | Generated plots (not committed) |
-
-See [ROADMAP.md](ROADMAP.md) for the build plan.
-
-## Setup
+## Architecture
 
 ```
-pip install -r requirements.txt
-python lessons\00_check_setup.py
+Sideman.Core   pure C#, zero dependencies — DSP + analysis (portable to mobile)
+Sideman.Media  desktop I/O: NAudio decode/capture, YouTube audio download
+Sideman.App    WPF desktop app (CommunityToolkit.Mvvm)
+Sideman.Cli    command-line analysis & calibration harness
+tests/         NUnit; synthetic Karplus-Strong fixtures with known ground truth
 ```
 
-Lesson scripts can be run from any directory — they anchor themselves to the repo root. A virtualenv works too, if you prefer one:
+Analysis pipeline: STFT → semitone-weighted log chroma + bass-note detection
+→ harmonic-aware chord templates (with anti-third discrimination) → Viterbi
+smoothing → segments. Rhythm: spectral flux → autocorrelation tempo →
+dynamic-programming beat tracking (Ellis 2007).
+
+## Build & run
 
 ```
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python lessons\00_check_setup.py
+dotnet test tests/Sideman.Core.Tests          # 30 tests
+dotnet run --project src/Sideman.Cli -- demo  # synthesize + analyze a progression
+dotnet run --project src/Sideman.Cli -- analyze path/to/song.mp3
+# desktop app:
+dotnet run --project src/Sideman.App
 ```
+
+## Status
+
+Working: tuner, offline chord/tempo analysis, live detection, file/record/
+YouTube input, calibrated against synthetic strummed progressions (clean and
+noisy). In progress: calibration on real guitar recordings, richer chord
+vocabulary (7ths, sus), chord diagrams. See [ROADMAP.md](ROADMAP.md).

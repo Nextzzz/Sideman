@@ -1,44 +1,38 @@
 # Roadmap
 
-Each phase ends with something runnable and demoable.
+## Phase 1 — Analysis core (C#) ✅
+- [x] FFT/STFT, chroma with semitone-proximity weighting and bass-note detection
+- [x] Chord recognition: harmonic templates + anti-third + Viterbi (24 triads + N)
+- [x] Tuner: YIN pitch detection (±2 cents)
+- [x] Rhythm: spectral flux onsets, autocorrelation tempo, Ellis DP beats
+- [x] Streaming (causal) chord detector for live playing
+- [x] 30 NUnit tests on synthetic ground truth (clean + noisy progressions)
 
-## Phase 0 — Digital audio fundamentals ✅
-- [x] Project scaffold, environment
-- [x] Sine wave, samples, sample rate (lesson 00)
-- [x] Record own guitar from mic (lesson 01)
-- [x] Hand-rolled STFT + spectrogram of own playing (lesson 02)
+## Phase 2 — Desktop app ✅ (first cut)
+- [x] WPF: tuner tab, live chords tab, song analysis tab
+- [x] Inputs: audio file (wav/mp3/m4a), mic recording, YouTube link
+- [x] CLI: `analyze`, `demo`
 
-## Phase 1 — Offline analyzer (WAV in → music out) ⏳
-- [x] Onset detection via spectral flux, by hand (lesson 03)
-- [x] Tempo estimation + beat tracking, Ellis DP (lesson 04)
-- [ ] Compare hand-rolled tracker against a library on real recordings
-- [ ] Chroma features by hand
-- [ ] Chord recognition: chroma → template matching → HMM/Viterbi smoothing
-- [ ] CLI: `analyze take.wav` → tempo, beat grid, chord timeline
+## Phase 3 — Real-world calibration ⏳
+- [ ] Record real guitar takes (several guitars/rooms), build a labeled set
+- [ ] Evaluation harness: accuracy vs .lab annotations, parameter sweeps
+- [ ] Tune: silence gate, no-chord floor, self-transition, bass weighting
+- [ ] Tuning-offset estimation (guitars not at A440)
 
-## Phase 2 — Real-time dashboard
-- [ ] Audio callback + ring buffer, latency measurement
-- [ ] Streaming onset/beat tracking
-- [ ] Streaming chord estimation
-- [ ] Live display: current tempo, phase, chord
+## Phase 4 — Feature depth
+- [ ] Chord vocabulary: dominant 7 / maj7 / m7 / sus2 / sus4 / power chords
+- [ ] Chord diagrams (fingerings) in the app
+- [ ] Beat-synchronized chord output (chords snapped to the beat grid)
+- [ ] Monophonic riff transcription (tab for single-note lines)
+- [ ] Capo detection / transposition helper
 
-## Phase 3 — The drummer
-- [ ] MIDI out → synth (FluidSynth / sampled drums)
-- [ ] Scheduler: events placed ahead of predicted beats
-- [ ] Tempo phase-locking (PLL): follow gradual speed-ups/slow-downs
-- [ ] Confidence rules: simplify pattern when tracking is uncertain
+## Phase 5 — Mobile (.NET MAUI)
+- [ ] Extract ViewModels to a shared project
+- [ ] Platform audio capture (AVAudioEngine / AudioRecord bindings)
+- [ ] Allocation-free audio path in Core (mobile GC discipline)
 
-## Phase 4 — The bassist
-- [ ] Chord progression corpus → Markov model of "what comes next"
-- [ ] Bass lines from predicted harmony (root/fifth/walking patterns)
-- [ ] Dynamics following (velocity tracks player's energy)
-
-## Phase 5 — Demo & polish
-- [ ] 90-second demo video: play guitar, band joins in
-- [ ] README with architecture + lessons learned
-- [ ] Pitch one-pager
-
-## Later / product track
-- [ ] Port real-time engine to .NET (ONNX Runtime + NAudio/ASIO) or web
-- [ ] Style library (rock/blues/funk grooves)
-- [ ] ML generation experiments (ReaLchords-style)
+## Phase 6 — The band member (the big goal)
+- [ ] Tempo phase-locking (PLL) — accompaniment that follows live tempo
+- [ ] Chord prediction (progression language model)
+- [ ] Drum/bass pattern engine scheduled ahead of predicted beats
+- [ ] AI generation experiments (ONNX on-device / server)

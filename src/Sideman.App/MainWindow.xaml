@@ -1,0 +1,112 @@
+<Window x:Class="Sideman.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sideman" Height="640" Width="920"
+        Background="#1E1E24" Foreground="#EAEAEA"
+        FontFamily="Segoe UI">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="#2A2A33" Padding="10,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Мікрофон:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox Width="300" ItemsSource="{Binding Devices}"
+                          SelectedItem="{Binding SelectedDevice}"/>
+                <Button Content="{Binding MicButtonText}" Command="{Binding ToggleMicCommand}"
+                        Margin="10,0,0,0" Padding="12,4"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Background="#1E1E24" BorderThickness="0">
+            <TabItem Header="Тюнер">
+                <Grid>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding Tuner.NoteName}" FontSize="120" FontWeight="Bold"
+                                   HorizontalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#EAEAEA"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Tuner.InTune}" Value="True">
+                                            <Setter Property="Foreground" Value="#4CD964"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Slider Width="420" Minimum="-50" Maximum="50" IsEnabled="False"
+                                Value="{Binding Tuner.Cents, Mode=OneWay}" Margin="0,10"
+                                TickPlacement="BottomRight" TickFrequency="10"/>
+                        <Grid Width="420">
+                            <TextBlock Text="♭ нижче" HorizontalAlignment="Left" Opacity="0.6"/>
+                            <TextBlock Text="вище ♯" HorizontalAlignment="Right" Opacity="0.6"/>
+                        </Grid>
+                        <TextBlock Text="{Binding Tuner.Details}" FontSize="18" Opacity="0.8"
+                                   HorizontalAlignment="Center" Margin="0,14,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Акорди наживо">
+                <Grid Margin="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="240"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding Live.CurrentChord}" FontSize="160" FontWeight="Bold"
+                                   Foreground="#6FB7FF" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding Live.Confidence}" FontSize="16" Opacity="0.7"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <DockPanel Grid.Column="1">
+                        <TextBlock DockPanel.Dock="Top" Text="Історія" FontSize="16" Margin="0,0,0,6" Opacity="0.8"/>
+                        <ListBox ItemsSource="{Binding Live.History}" Background="#2A2A33"
+                                 Foreground="#EAEAEA" BorderThickness="0"/>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Пісня">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0">
+                        <Button DockPanel.Dock="Right" Content="Аналізувати"
+                                Command="{Binding Song.AnalyzeCommand}" Padding="14,6" Margin="8,0,0,0"/>
+                        <Button DockPanel.Dock="Right" Content="Огляд…"
+                                Command="{Binding Song.BrowseCommand}" Padding="14,6" Margin="8,0,0,0"/>
+                        <TextBox Text="{Binding Song.Source, UpdateSourceTrigger=PropertyChanged}"
+                                 VerticalContentAlignment="Center" Padding="6,4"
+                                 Background="#2A2A33" Foreground="#EAEAEA" BorderBrush="#444"/>
+                    </DockPanel>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="{Binding Song.RecordButtonText}"
+                                Command="{Binding Song.ToggleRecordCommand}" Padding="14,6"/>
+                        <TextBlock Text="{Binding Song.Status}" VerticalAlignment="Center"
+                                   Margin="14,0,0,0" Opacity="0.85"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2" Text="{Binding Song.Summary}" FontSize="16"
+                               Margin="0,12,0,6" FontWeight="SemiBold"/>
+
+                    <ListView Grid.Row="3" ItemsSource="{Binding Song.Segments}"
+                              Background="#2A2A33" Foreground="#EAEAEA" BorderThickness="0">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Початок" Width="90" DisplayMemberBinding="{Binding Start}"/>
+                                <GridViewColumn Header="Кінець" Width="90" DisplayMemberBinding="{Binding End}"/>
+                                <GridViewColumn Header="Акорд" Width="120" DisplayMemberBinding="{Binding Chord}"/>
+                                <GridViewColumn Header="Впевненість" Width="110" DisplayMemberBinding="{Binding Confidence}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

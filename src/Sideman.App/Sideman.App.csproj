@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Sideman.Core\Sideman.Core.csproj" />
     <ProjectReference Include="..\Sideman.Media\Sideman.Media.csproj" />
   </ItemGroup>
