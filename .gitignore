@@ -6,3 +6,4 @@ output/
 audio/
 .venv/
 __pycache__/
+*.egg-info/
