@@ -2,15 +2,16 @@
 
 Each phase ends with something runnable and demoable.
 
-## Phase 0 — Digital audio fundamentals ⏳
+## Phase 0 — Digital audio fundamentals ✅
 - [x] Project scaffold, environment
-- [ ] Sine wave, samples, sample rate (lesson 00)
-- [ ] Record own guitar from mic (lesson 01)
-- [ ] Hand-rolled STFT + spectrogram of own playing (lesson 02)
+- [x] Sine wave, samples, sample rate (lesson 00)
+- [x] Record own guitar from mic (lesson 01)
+- [x] Hand-rolled STFT + spectrogram of own playing (lesson 02)
 
-## Phase 1 — Offline analyzer (WAV in → music out)
-- [ ] Onset detection via spectral flux, by hand
-- [ ] Tempo estimation + beat tracking (Ellis DP algorithm, then compare with a library)
+## Phase 1 — Offline analyzer (WAV in → music out) ⏳
+- [x] Onset detection via spectral flux, by hand (lesson 03)
+- [x] Tempo estimation + beat tracking, Ellis DP (lesson 04)
+- [ ] Compare hand-rolled tracker against a library on real recordings
 - [ ] Chroma features by hand
 - [ ] Chord recognition: chroma → template matching → HMM/Viterbi smoothing
 - [ ] CLI: `analyze take.wav` → tempo, beat grid, chord timeline

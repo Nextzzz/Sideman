@@ -68,7 +68,9 @@ def main() -> None:
     peaks, threshold = pick_onsets(
         novelty, frame_rate, delta=DELTA, min_gap_s=MIN_GAP_S
     )
-    onset_times = peaks * HOP / sr
+    # Frame i covers samples [i*hop, i*hop + n_fft): timestamp its CENTER —
+    # the attack sits inside the window, not at its left edge.
+    onset_times = (peaks * HOP + N_FFT // 2) / sr
 
     print(f"{len(peaks)} onsets detected: "
           + ", ".join(f"{t:.2f}" for t in onset_times))
@@ -95,7 +97,7 @@ def main() -> None:
 
     # Visual check: waveform, spectrogram and novelty, onsets everywhere.
     duration = len(x) / sr
-    frame_t = np.arange(len(novelty)) / frame_rate
+    frame_t = (np.arange(len(novelty)) * HOP + N_FFT // 2) / sr
     freqs = np.fft.rfftfreq(N_FFT, d=1.0 / sr)
     keep = freqs <= FMAX
 
