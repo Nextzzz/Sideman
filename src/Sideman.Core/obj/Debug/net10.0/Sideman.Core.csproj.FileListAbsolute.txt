@@ -1,0 +1,12 @@
+D:\Projects\sideman\src\Sideman.Core\bin\Debug\net10.0\Sideman.Core.deps.json
+D:\Projects\sideman\src\Sideman.Core\bin\Debug\net10.0\Sideman.Core.dll
+D:\Projects\sideman\src\Sideman.Core\bin\Debug\net10.0\Sideman.Core.pdb
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.AssemblyInfoInputs.cache
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.AssemblyInfo.cs
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.csproj.CoreCompileInputs.cache
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.sourcelink.json
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.dll
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\refint\Sideman.Core.dll
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\Sideman.Core.pdb
+D:\Projects\sideman\src\Sideman.Core\obj\Debug\net10.0\ref\Sideman.Core.dll
