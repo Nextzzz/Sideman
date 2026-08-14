@@ -31,6 +31,11 @@ public sealed class ChromaExtractor
     public double FrameTime(int frameIndex, int sampleRate) =>
         (frameIndex * (double)Hop + NFft / 2.0) / sampleRate;
 
+    /// <summary>Global tuning deviation in semitones (-0.5..0.5), subtracted
+    /// before pitch-class mapping. A guitar tuned 30 cents flat otherwise
+    /// lands between semitone bands and the whole chroma collapses.</summary>
+    public double TuningOffset { get; set; }
+
     public ChromaFrame[] Extract(float[] samples, int sampleRate)
     {
         var stft = new Stft(NFft, Hop);
@@ -41,6 +46,39 @@ public sealed class ChromaExtractor
         foreach (var magnitude in stft.Magnitudes(samples))
             result[f++] = FoldFrame(magnitude, sampleRate);
         return result;
+    }
+
+    /// <summary>
+    /// Estimates how far the recording is from A440, as the circular mean
+    /// of every bin's deviation from the nearest semitone, weighted by
+    /// magnitude. Call before Extract, assign to <see cref="TuningOffset"/>.
+    /// </summary>
+    public double EstimateTuning(float[] samples, int sampleRate)
+    {
+        var stft = new Stft(NFft, Hop * 4); // sparse pass is enough
+        double binHz = sampleRate / (double)NFft;
+        int kMin = Math.Max(1, (int)Math.Ceiling(100.0 / binHz));
+        int kMax = (int)Math.Floor(Math.Min(FMax, 2000.0) / binHz);
+
+        double x = 0, y = 0;
+        foreach (var magnitude in stft.Magnitudes(samples))
+        {
+            for (int k = kMin; k <= kMax && k < magnitude.Length; k++)
+            {
+                double midi = Notes.MidiFromFrequency(k * binHz);
+                double deviation = midi - Math.Round(midi); // -0.5..0.5
+                // Circular statistics: deviation is an angle on a semitone circle.
+                x += magnitude[k] * Math.Cos(2 * Math.PI * deviation);
+                y += magnitude[k] * Math.Sin(2 * Math.PI * deviation);
+            }
+        }
+        double offset = x == 0 && y == 0 ? 0 : Math.Atan2(y, x) / (2 * Math.PI);
+
+        // Real guitars drift by cents, not quarter-tones. An estimate near
+        // ±0.5 is the ambiguous boundary where a wrong sign shifts EVERY
+        // chord by a semitone (measured: whole files dropping to 0%
+        // accuracy) — better to apply no correction at all.
+        return Math.Abs(offset) <= 0.25 ? offset : 0.0;
     }
 
     /// <summary>Fold one magnitude spectrum into chroma + bass chroma.</summary>
@@ -55,7 +93,7 @@ public sealed class ChromaExtractor
         for (int k = kMin; k <= kMax; k++)
         {
             double freq = k * binHz;
-            double midi = Notes.MidiFromFrequency(freq);
+            double midi = Notes.MidiFromFrequency(freq) - TuningOffset;
             int nearest = (int)Math.Round(midi);
             int pc = ((nearest % 12) + 12) % 12;
 

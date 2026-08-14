@@ -35,11 +35,14 @@ public sealed class StreamingChordDetector
 
     public event Action<Chord>? ChordChanged;
 
+    // Defaults tuned for display stability: the first detection during a
+    // strum transient is usually wrong, so a candidate must hold ~230 ms
+    // before it is shown. Latency you can feel beats flicker you can see.
     public StreamingChordDetector(
         int sampleRate,
         ChordEmissionModel? emissions = null,
-        double selfTransition = 0.9,
-        int holdFrames = 3)
+        double selfTransition = 0.95,
+        int holdFrames = 5)
     {
         _sampleRate = sampleRate;
         _emissions = emissions ?? new ChordEmissionModel();

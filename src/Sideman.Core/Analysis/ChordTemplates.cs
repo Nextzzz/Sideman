@@ -61,11 +61,11 @@ public sealed class ChordTemplates
         var v = new float[12];
         AddTone(v, root, 1.0);                // root
         AddTone(v, (root + third) % 12, 0.8); // third defines major/minor
-        AddTone(v, (root + 7) % 12, 0.9);     // fifth
+        AddTone(v, (root + 7) % 12, 0.9);     // fifth (0.6 was tried: -8pp WCSR)
 
         // Anti-third: energy at the OTHER third is evidence against this
-        // chord. Without it, harmonic leakage (an E string always sounds
-        // some G#) drags every minor chord toward its major twin.
+        // chord. Symmetric -0.3 measured best on GuitarSet (asymmetric
+        // variants were tried and scored worse).
         int otherThird = third == 4 ? 3 : 4;
         v[(root + otherThird) % 12] -= 0.3f;
         return v;
@@ -104,18 +104,26 @@ public sealed class ChordEmissionModel
 {
     public ChordTemplates Templates { get; } = new();
 
+    // Defaults below are calibrated on GuitarSet (180 real mic recordings,
+    // frame-level WCSR sweep) — not on synthetic signals.
+
     /// <summary>Sharpens cosine similarities into emissions: sim^beta.</summary>
-    public double EmissionSharpness { get; init; } = 6.0;
+    public double EmissionSharpness { get; init; } = 2.5;
 
     /// <summary>Quality floor: a chord must be at least this similar to beat
-    /// "no chord". Calibrated on synthetic strums: noise frames score up to
-    /// ~0.68, decayed-but-clean chords from ~0.78.</summary>
-    public double NoChordSimilarity { get; init; } = 0.72;
+    /// "no chord". Real-recording chroma is messy; 0.72 (synthetic-derived)
+    /// sent a third of all real frames to "N".</summary>
+    public double NoChordSimilarity { get; init; } = 0.45;
 
     /// <summary>Bonus when the chord's root is sounding in the bass. On
     /// strummed guitar the bass note is almost always the root — this is
     /// what separates G from its relatives Em/Bm that share most tones.</summary>
-    public double BassRootWeight { get; init; } = 0.12;
+    public double BassRootWeight { get; init; } = 0.3;
+
+    /// <summary>Bonus proportional to the root's strength in the full
+    /// chroma. Targets the "C# heard as Fm" family: a chord whose root is
+    /// missing from the spectrum is probably not the chord being played.</summary>
+    public double RootChromaWeight { get; init; } = 0.0;
 
     /// <summary>Frames with chroma energy below this are treated as silence.</summary>
     public double SilenceEnergy { get; init; } = 1.0;
@@ -140,8 +148,10 @@ public sealed class ChordEmissionModel
 
         for (int s = 0; s < Templates.Count; s++)
         {
+            int root = Templates.Chords[s].Root;
             double sim = Templates.Similarity(frame.Chroma, s)
-                         + BassRootWeight * frame.Bass[Templates.Chords[s].Root];
+                         + BassRootWeight * frame.Bass[root]
+                         + RootChromaWeight * frame.Chroma[root];
             dest[s] = EmissionSharpness * Math.Log(Math.Max(sim, 1e-3));
         }
         dest[NoneState] = EmissionSharpness * Math.Log(NoChordSimilarity);

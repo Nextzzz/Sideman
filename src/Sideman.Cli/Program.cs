@@ -37,6 +37,49 @@ switch (args[0])
         return 0;
     }
 
+    case "eval":
+    {
+        // sideman eval [datasetRoot] [limit] [--floor=0.6] [--self=0.97] [--sharp=6] [--bass=0.12]
+        string root = args.Length > 1 ? args[1] : "datasets/guitarset";
+        int limit = args.Length > 2 && !args[2].StartsWith("--") ? int.Parse(args[2]) : int.MaxValue;
+
+        double Param(string name, double fallback)
+        {
+            var arg = args.FirstOrDefault(a => a.StartsWith($"--{name}="));
+            return arg == null
+                ? fallback
+                : double.Parse(arg.Split('=')[1], System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        var options = new ChordRecognizerOptions
+        {
+            SelfTransition = Param("self", 0.97),
+            Emissions = new ChordEmissionModel
+            {
+                NoChordSimilarity = Param("floor", 0.72),
+                EmissionSharpness = Param("sharp", 6.0),
+                BassRootWeight = Param("bass", 0.12),
+                RootChromaWeight = Param("rootw", 0.0),
+                SilenceEnergy = Param("silence", 1.0),
+            },
+        };
+        Console.WriteLine($"floor={options.Emissions.NoChordSimilarity} self={options.SelfTransition} " +
+                          $"sharp={options.Emissions.EmissionSharpness} bass={options.Emissions.BassRootWeight}");
+        var evaluator = new Sideman.Cli.Evaluation.Evaluator { Limit = limit, Options = options };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var (files, confusions, scored, correct) = evaluator.Run(
+            Path.Combine(root, "annotation"), Path.Combine(root, "audio_mono-mic"));
+        Console.WriteLine(Sideman.Cli.Evaluation.Evaluator.Report(files, confusions, scored, correct));
+        Console.WriteLine($"Elapsed: {sw.Elapsed.TotalSeconds:F0}s");
+
+        Directory.CreateDirectory("output");
+        File.WriteAllLines("output/eval_results.csv",
+            new[] { "file,scored,correct,accuracy,top_confusion" }
+            .Concat(files.Select(f => $"{f.Name},{f.Scored},{f.Correct},{f.Accuracy:F4},{f.TopConfusion}")));
+        Console.WriteLine("Per-file results: output/eval_results.csv");
+        return 0;
+    }
+
     case "demo":
     {
         string output = args.Length > 1 ? args[1] : "demo_progression.wav";

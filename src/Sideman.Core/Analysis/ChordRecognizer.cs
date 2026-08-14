@@ -9,8 +9,10 @@ public sealed record ChordSegment(double Start, double End, Chord Chord, double 
 public sealed class ChordRecognizerOptions
 {
     /// <summary>Probability of staying on the same chord between frames.
-    /// Higher = steadier output, slower to react to real changes.</summary>
-    public double SelfTransition { get; init; } = 0.97;
+    /// Higher = steadier output, slower to react to real changes.
+    /// GuitarSet-calibrated; the known cost is fast jazz (chords under ~1s
+    /// get steamrolled) until beat-synchronized decoding lands.</summary>
+    public double SelfTransition { get; init; } = 0.995;
 
     /// <summary>Segments shorter than this are merged into their neighbor.</summary>
     public double MinSegmentSeconds { get; init; } = 0.4;
@@ -39,6 +41,7 @@ public sealed class ChordRecognizer
 
     public IReadOnlyList<ChordSegment> Recognize(float[] samples, int sampleRate)
     {
+        _chroma.TuningOffset = _chroma.EstimateTuning(samples, sampleRate);
         var chroma = _chroma.Extract(samples, sampleRate);
         if (chroma.Length == 0)
             return Array.Empty<ChordSegment>();
