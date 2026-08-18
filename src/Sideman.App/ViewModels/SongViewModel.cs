@@ -298,8 +298,15 @@ public partial class SongViewModel : ObservableObject, IDisposable
         {
             "Гітара" => true,
             "Мікс" => false,
-            _ => micRecording,
+            // Auto: mic takes are guitar by definition; files are probed —
+            // no sub-70Hz energy means no kick/bass, i.e. solo guitar.
+            _ => micRecording || AudioDomainClassifier.IsGuitarLike(
+                     samples44, MicrophoneCapture.SampleRate),
         };
+        if (EngineMode == "Авто" && !micRecording)
+            FileLog.Info($"Auto domain probe: lowBand=" +
+                $"{AudioDomainClassifier.LowBandRatio(samples44, MicrophoneCapture.SampleRate):F4}" +
+                $" -> {(useGuitar ? "guitar" : "mix")} model");
         string? modelPath = useGuitar
             ? _guitarModelPath ?? _mixModelPath
             : _mixModelPath ?? _guitarModelPath;

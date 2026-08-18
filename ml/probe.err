@@ -1,0 +1,118 @@
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=367
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=184
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=147
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=74
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=37
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=19
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=10
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=5
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=450
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=225
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=113
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=57
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=29
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=130
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=65
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=33
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=17
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=9
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=256
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=128
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=333
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=167
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=84
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=457
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=229
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=115
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=280
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=140
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=70
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=35
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=335
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=168
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=42
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=292
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=146
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=73
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=415
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=208
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=104
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=402
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=201
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=101
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=88
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=44
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=22
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=11
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=6
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=3
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=445
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=223
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=112
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=56
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=505
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=253
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=127
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=64
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=32
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=2
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=1
+  D = stft(

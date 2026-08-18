@@ -110,6 +110,17 @@ switch (args[0])
         return 0;
     }
 
+    case "probe":
+    {
+        // sideman probe <file> — domain classification diagnostics
+        var (samples, sr) = AudioLoader.LoadMono(args[1]);
+        double ratio = Sideman.Neural.AudioDomainClassifier.LowBandRatio(samples, sr);
+        bool guitarLike = ratio < Sideman.Neural.AudioDomainClassifier.GuitarThreshold;
+        Console.WriteLine($"{Path.GetFileName(args[1])}: lowBand={ratio:F4} -> " +
+                          (guitarLike ? "GUITAR model" : "MIX model"));
+        return 0;
+    }
+
     case "demo":
     {
         string output = args.Length > 1 ? args[1] : "demo_progression.wav";
