@@ -108,6 +108,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -138,8 +139,36 @@
                     <TextBlock Grid.Row="2" Text="{Binding Song.Summary}" FontSize="16"
                                Margin="0,12,0,6" FontWeight="SemiBold"/>
 
-                    <ListView Grid.Row="3" ItemsSource="{Binding Song.Segments}"
+                    <DockPanel Grid.Row="3" Margin="0,4,0,8"
+                               IsEnabled="{Binding Song.PlayerAvailable}">
+                        <Button DockPanel.Dock="Left" Content="{Binding Song.PlayButtonText}"
+                                Command="{Binding Song.PlayPauseCommand}" FontSize="18"
+                                Width="46" Height="36"/>
+                        <TextBlock DockPanel.Dock="Left" Text="{Binding Song.NowChord}"
+                                   FontSize="26" FontWeight="Bold" Foreground="#6FB7FF"
+                                   MinWidth="100" Margin="14,0" VerticalAlignment="Center"
+                                   TextAlignment="Center"/>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Song.TimeText}"
+                                   VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.7"/>
+                        <Slider Minimum="0" Maximum="{Binding Song.DurationSeconds}"
+                                Value="{Binding Song.PositionSeconds, Mode=TwoWay}"
+                                VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <ListView Grid.Row="4" x:Name="SongList" ItemsSource="{Binding Song.Segments}"
+                              SelectedItem="{Binding Song.SelectedRow, Mode=TwoWay}"
+                              SelectionChanged="SongList_SelectionChanged"
                               Background="#2A2A33" Foreground="#EAEAEA" BorderThickness="0">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                        <Setter Property="Background" Value="#3A5C80"/>
+                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn Header="Початок" Width="90" DisplayMemberBinding="{Binding Start}"/>

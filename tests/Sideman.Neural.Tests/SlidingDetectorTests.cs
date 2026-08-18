@@ -56,12 +56,15 @@ public class SlidingDetectorTests
             detector.Tick();
         }
 
-        // Assert: all four chords confirmed, in playing order.
+        // Assert: all four chords confirmed, in playing order, and the
+        // stability gate let NOTHING else through.
         var indexes = new[] { "G", "C", "D", "Em" }
             .Select(l => confirmed.IndexOf(l))
             .ToArray();
         Assert.That(indexes.All(i => i >= 0), Is.True,
             "missing chords; confirmed: " + string.Join(",", confirmed));
         Assert.That(indexes, Is.Ordered, string.Join(",", confirmed));
+        Assert.That(confirmed.Where(l => l is not ("G" or "C" or "D" or "Em" or "—")), Is.Empty,
+            "spurious confirmations: " + string.Join(",", confirmed));
     }
 }

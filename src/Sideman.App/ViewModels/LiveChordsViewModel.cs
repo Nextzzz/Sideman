@@ -97,8 +97,13 @@ public partial class LiveChordsViewModel : ObservableObject, IDisposable
         });
     }
 
+    private string? _lastHistoryLabel;
+
     private void PushHistory(string label)
     {
+        if (label == _lastHistoryLabel)
+            return; // the same chord re-confirmed is not a new event
+        _lastHistoryLabel = label;
         History.Insert(0, $"{DateTime.Now:HH:mm:ss}   {label}");
         while (History.Count > 50)
             History.RemoveAt(History.Count - 1);

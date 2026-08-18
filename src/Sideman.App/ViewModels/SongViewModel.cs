@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -11,20 +12,34 @@ using Sideman.Neural;
 
 namespace Sideman.App.ViewModels;
 
-public sealed record SegmentRow(string Start, string End, string Chord);
+/// <summary>One chord segment row; IsCurrent lights up during playback.</summary>
+public partial class SegmentRowVm : ObservableObject
+{
+    public required string Start { get; init; }
+    public required string End { get; init; }
+    public required string Chord { get; init; }
+    public double StartSec { get; init; }
+    public double EndSec { get; init; }
+
+    [ObservableProperty]
+    private bool isCurrent;
+}
 
 /// <summary>
-/// Song analysis: chords come from the neural recognizer (full vocabulary,
-/// ~76% benchmark accuracy) when the model file is present, falling back
-/// to the template engine otherwise. Tempo always comes from the DSP
-/// rhythm pipeline.
+/// Song analysis: neural chords (full vocabulary) + DSP tempo, plus a
+/// built-in player with a chord timeline that follows the sound — listen
+/// and verify which chords the model got wrong.
 /// </summary>
-public partial class SongViewModel : ObservableObject
+public partial class SongViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _main;
     private readonly string? _neuralModelPath;
     private NeuralChordRecognizer? _neural;
     private bool _recording;
+
+    private readonly AudioPlayer _player = new();
+    private string? _audioPath;
+    private bool _syncingPosition;
 
     [ObservableProperty]
     private string source = "";
@@ -41,12 +56,38 @@ public partial class SongViewModel : ObservableObject
     [ObservableProperty]
     private string recordButtonText = "● Записати";
 
-    public ObservableCollection<SegmentRow> Segments { get; } = new();
+    [ObservableProperty]
+    private bool playerAvailable;
+
+    [ObservableProperty]
+    private string playButtonText = "▶";
+
+    [ObservableProperty]
+    private double positionSeconds;
+
+    [ObservableProperty]
+    private double durationSeconds;
+
+    [ObservableProperty]
+    private string timeText = "";
+
+    /// <summary>The chord sounding right now during playback.</summary>
+    [ObservableProperty]
+    private string nowChord = "";
+
+    [ObservableProperty]
+    private SegmentRowVm? selectedRow;
+
+    public ObservableCollection<SegmentRowVm> Segments { get; } = new();
 
     public SongViewModel(MainViewModel main, string? neuralModelPath)
     {
         _main = main;
         _neuralModelPath = neuralModelPath;
+
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        timer.Tick += (_, _) => SyncPlayback();
+        timer.Start();
     }
 
     [RelayCommand]
@@ -82,9 +123,10 @@ public partial class SongViewModel : ObservableObject
             }
 
             Status = "Аналіз…";
-            var (rows, bpm, duration) = await Task.Run(() => AnalyzeFile(path));
-            ShowRows(rows, Path.GetFileName(path), bpm, duration);
-            FileLog.Info($"Analyze done: {rows.Count} segments, {bpm:F0} BPM");
+            var (samples44, _) = await Task.Run(() => AudioLoader.LoadMono(path));
+            var result = await Task.Run(() => Analyze(path, samples44));
+            ShowAnalysis(result, path);
+            FileLog.Info($"Analyze done: {result.Segments.Count} segments, {result.Bpm:F0} BPM");
         }
         catch (Exception ex)
         {
@@ -94,24 +136,6 @@ public partial class SongViewModel : ObservableObject
         finally
         {
             Busy = false;
-        }
-    }
-
-    [RelayCommand]
-    private void OpenLog()
-    {
-        try
-        {
-            if (File.Exists(FileLog.CurrentFile))
-                Process.Start(new ProcessStartInfo(FileLog.CurrentFile) { UseShellExecute = true });
-            else if (Directory.Exists(FileLog.Directory))
-                Process.Start(new ProcessStartInfo(FileLog.Directory) { UseShellExecute = true });
-            else
-                Status = "Лог ще порожній.";
-        }
-        catch (Exception ex)
-        {
-            Status = "Не вдалось відкрити лог: " + ex.Message;
         }
     }
 
@@ -148,11 +172,17 @@ public partial class SongViewModel : ObservableObject
             Directory.CreateDirectory(dir);
             string path = Path.Combine(dir, $"take_{DateTime.Now:yyyyMMdd_HHmmss}.wav");
             AudioLoader.SaveWav(path, samples, MicrophoneCapture.SampleRate);
+            FileLog.Info($"Recording saved: {path}");
 
             Status = "Аналіз запису…";
-            var (rows, bpm, duration) = await Task.Run(() => AnalyzeSamples(samples));
-            ShowRows(rows, Path.GetFileName(path), bpm, duration);
+            var result = await Task.Run(() => Analyze(path, samples));
+            ShowAnalysis(result, path);
             Status = $"Готово. Збережено: {path}";
+        }
+        catch (Exception ex)
+        {
+            FileLog.Error("Recording analysis failed", ex);
+            Status = "Помилка: " + ex.Message;
         }
         finally
         {
@@ -160,61 +190,157 @@ public partial class SongViewModel : ObservableObject
         }
     }
 
-    private (List<SegmentRow> Rows, double Bpm, double Duration) AnalyzeFile(string path)
+    [RelayCommand]
+    private void PlayPause()
     {
-        var (samples44, _) = AudioLoader.LoadMono(path);
-        if (_neuralModelPath == null)
-            return AnalyzeWithTemplates(samples44);
-
-        var (samples22, _) = AudioLoader.LoadMono(path, CqtExtractor.SampleRate);
-        return AnalyzeNeural(samples22, samples44);
+        if (_audioPath == null)
+            return;
+        try
+        {
+            if (_player.LoadedPath != _audioPath)
+            {
+                _player.Load(_audioPath);
+                DurationSeconds = _player.DurationSeconds;
+            }
+            if (_player.IsPlaying)
+            {
+                _player.Pause();
+                PlayButtonText = "▶";
+            }
+            else
+            {
+                _player.Play();
+                PlayButtonText = "⏸";
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLog.Error("Playback failed", ex);
+            Status = "Не вдалось відтворити: " + ex.Message;
+        }
     }
 
-    private (List<SegmentRow> Rows, double Bpm, double Duration) AnalyzeSamples(float[] samples44)
+    [RelayCommand]
+    private void OpenLog()
     {
-        if (_neuralModelPath == null)
-            return AnalyzeWithTemplates(samples44);
-        return AnalyzeNeural(HalfbandDecimator.Decimate(samples44), samples44);
+        try
+        {
+            if (File.Exists(FileLog.CurrentFile))
+                Process.Start(new ProcessStartInfo(FileLog.CurrentFile) { UseShellExecute = true });
+            else if (Directory.Exists(FileLog.Directory))
+                Process.Start(new ProcessStartInfo(FileLog.Directory) { UseShellExecute = true });
+            else
+                Status = "Лог ще порожній.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Не вдалось відкрити лог: " + ex.Message;
+        }
     }
 
-    private (List<SegmentRow>, double, double) AnalyzeNeural(float[] samples22, float[] samples44)
+    partial void OnPositionSecondsChanged(double value)
     {
-        _neural ??= new NeuralChordRecognizer(_neuralModelPath!);
-        var segments = _neural.Recognize(samples22);
-        var rows = segments
-            .Select(s => new SegmentRow(
-                FormatTime(s.Start), FormatTime(s.End), ChordLabels.Pretty(s.Label)))
-            .ToList();
-
-        var onsets = new OnsetDetector();
-        var novelty = onsets.NoveltyCurve(samples44, MicrophoneCapture.SampleRate);
-        double bpm = new TempoEstimator().Estimate(
-            novelty, onsets.FrameRate(MicrophoneCapture.SampleRate));
-
-        return (rows, bpm, samples44.Length / (double)MicrophoneCapture.SampleRate);
+        if (!_syncingPosition && _player.LoadedPath != null)
+            _player.PositionSeconds = value;
     }
 
-    private (List<SegmentRow>, double, double) AnalyzeWithTemplates(float[] samples44)
+    private void SyncPlayback()
     {
+        if (_player.LoadedPath == null)
+            return;
+
+        if (!_player.IsPlaying && PlayButtonText == "⏸")
+            PlayButtonText = "▶"; // reached the end
+
+        _syncingPosition = true;
+        double position = _player.PositionSeconds;
+        PositionSeconds = position;
+        TimeText = $"{FormatClock(position)} / {FormatClock(DurationSeconds)}";
+        _syncingPosition = false;
+
+        var current = Segments.FirstOrDefault(
+            s => position >= s.StartSec && position < s.EndSec);
+        if (current != SelectedRow)
+        {
+            if (SelectedRow != null)
+                SelectedRow.IsCurrent = false;
+            if (current != null)
+            {
+                current.IsCurrent = true;
+                NowChord = current.Chord;
+            }
+            SelectedRow = current;
+        }
+    }
+
+    private sealed record AnalysisResult(
+        List<(double Start, double End, string Chord)> Segments, double Bpm, double Duration);
+
+    private AnalysisResult Analyze(string audioPath, float[] samples44)
+    {
+        double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
+
+        if (_neuralModelPath != null)
+        {
+            _neural ??= new NeuralChordRecognizer(_neuralModelPath);
+            var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
+                            || audioPath.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
+                            || audioPath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
+                ? AudioLoader.LoadMono(audioPath, CqtExtractor.SampleRate).Samples
+                : HalfbandDecimator.Decimate(samples44);
+            var segments = _neural.Recognize(samples22)
+                .Select(s => (s.Start, s.End, ChordLabels.Pretty(s.Label)))
+                .ToList();
+
+            var onsets = new OnsetDetector();
+            var novelty = onsets.NoveltyCurve(samples44, MicrophoneCapture.SampleRate);
+            double bpm = new TempoEstimator().Estimate(
+                novelty, onsets.FrameRate(MicrophoneCapture.SampleRate));
+            return new AnalysisResult(segments, bpm, duration);
+        }
+
         var analysis = new SongAnalyzer().Analyze(samples44, MicrophoneCapture.SampleRate);
         var rows = analysis.Chords
-            .Select(s => new SegmentRow(
-                FormatTime(s.Start), FormatTime(s.End),
+            .Select(s => (s.Start, s.End,
                 s.Chord.Label == "N" ? "—" : s.Chord.Label))
             .ToList();
-        return (rows, analysis.Bpm, analysis.DurationSeconds);
+        return new AnalysisResult(rows, analysis.Bpm, duration);
     }
 
-    private void ShowRows(List<SegmentRow> rows, string title, double bpm, double duration)
+    private void ShowAnalysis(AnalysisResult result, string audioPath)
     {
+        _player.Stop();
+        PlayButtonText = "▶";
+        NowChord = "";
+        _audioPath = audioPath;
+        PlayerAvailable = true;
+        DurationSeconds = result.Duration;
+        PositionSeconds = 0;
+        TimeText = $"0:00 / {FormatClock(result.Duration)}";
+
         Segments.Clear();
-        foreach (var row in rows)
-            Segments.Add(row);
+        foreach (var (start, end, chord) in result.Segments)
+        {
+            Segments.Add(new SegmentRowVm
+            {
+                Start = FormatTime(start),
+                End = FormatTime(end),
+                Chord = chord,
+                StartSec = start,
+                EndSec = end,
+            });
+        }
         string engine = _neuralModelPath != null ? "нейро" : "шаблони";
-        Summary = $"{title}   •   {duration:F0} с   •   {bpm:F0} BPM   •   {engine}";
-        Status = "Готово.";
+        Summary = $"{Path.GetFileName(audioPath)}   •   {result.Duration:F0} с   •   " +
+                  $"{result.Bpm:F0} BPM   •   {engine}";
+        Status = "Готово. Натисни ▶ і звіряй акорди на слух.";
     }
 
     private static string FormatTime(double seconds) =>
         $"{(int)seconds / 60}:{seconds % 60:00.0}";
+
+    private static string FormatClock(double seconds) =>
+        $"{(int)seconds / 60}:{(int)seconds % 60:00}";
+
+    public void Dispose() => _player.Dispose();
 }

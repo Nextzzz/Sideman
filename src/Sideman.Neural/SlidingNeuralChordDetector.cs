@@ -36,6 +36,15 @@ public sealed class SlidingNeuralChordDetector : IDisposable
     /// <summary>Display-ready confirmed chord ("—", "C", "F#m7"...).</summary>
     public string CurrentPretty => ChordLabels.Pretty(CurrentLabel);
 
+    /// <summary>A new label must win this many consecutive inferences
+    /// before being confirmed. During a chord change the window briefly
+    /// contains both chords and a single inference can land anywhere —
+    /// one-tick blips must never reach the display or history.</summary>
+    public int ConfirmTicks { get; set; } = 2;
+
+    private string _pendingLabel = "N";
+    private int _pendingCount;
+
     public event Action<string>? ConfirmedChanged;
 
     public SlidingNeuralChordDetector(string onnxPath)
@@ -114,9 +123,26 @@ public sealed class SlidingNeuralChordDetector : IDisposable
             var labels = _recognizer.PredictWindow(_frames);
             string label = labels[Math.Max(0, labels.Length - 1 - FutureMarginFrames)];
             if (label == CurrentLabel)
+            {
+                _pendingCount = 0;
+                return false;
+            }
+
+            // Stability gate: the same NEW label must repeat across ticks.
+            if (label == _pendingLabel)
+            {
+                _pendingCount++;
+            }
+            else
+            {
+                _pendingLabel = label;
+                _pendingCount = 1;
+            }
+            if (_pendingCount < ConfirmTicks)
                 return false;
 
             CurrentLabel = label;
+            _pendingCount = 0;
             ConfirmedChanged?.Invoke(label);
             return true;
         }

@@ -75,6 +75,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Live.Dispose();
+        Song.Dispose();
         Capture.Dispose();
     }
 }
