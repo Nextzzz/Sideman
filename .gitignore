@@ -10,3 +10,4 @@ __pycache__/
 datasets/
 ml/vendor/
 ml/.venv/
+ml/cache/
