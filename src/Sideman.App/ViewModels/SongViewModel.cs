@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sideman.Core.Analysis;
+using Sideman.Core.Diagnostics;
 using Sideman.Media;
 using Sideman.Neural;
 
@@ -71,6 +73,7 @@ public partial class SongViewModel : ObservableObject
         try
         {
             string path = Source.Trim();
+            FileLog.Info($"Analyze requested: {path}");
             if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
                 Status = "Завантаження аудіо з YouTube…";
@@ -81,14 +84,34 @@ public partial class SongViewModel : ObservableObject
             Status = "Аналіз…";
             var (rows, bpm, duration) = await Task.Run(() => AnalyzeFile(path));
             ShowRows(rows, Path.GetFileName(path), bpm, duration);
+            FileLog.Info($"Analyze done: {rows.Count} segments, {bpm:F0} BPM");
         }
         catch (Exception ex)
         {
-            Status = "Помилка: " + ex.Message;
+            FileLog.Error($"Analyze failed for '{Source}'", ex);
+            Status = "Помилка: " + ex.Message + "   (повний стек — у лозі, кнопка «Лог»)";
         }
         finally
         {
             Busy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenLog()
+    {
+        try
+        {
+            if (File.Exists(FileLog.CurrentFile))
+                Process.Start(new ProcessStartInfo(FileLog.CurrentFile) { UseShellExecute = true });
+            else if (Directory.Exists(FileLog.Directory))
+                Process.Start(new ProcessStartInfo(FileLog.Directory) { UseShellExecute = true });
+            else
+                Status = "Лог ще порожній.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Не вдалось відкрити лог: " + ex.Message;
         }
     }
 

@@ -1,10 +1,4 @@
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\.msCoverageSourceRootsMapping_Sideman.Core.Tests
-D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.csproj.AssemblyReference.cache
-D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.GeneratedMSBuildEditorConfig.editorconfig
-D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.AssemblyInfoInputs.cache
-D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.AssemblyInfo.cs
-D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.csproj.CoreCompileInputs.cache
-D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.sourcelink.json
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\testhost.dll
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\testhost.exe
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\NUnit3.TestAdapter.pdb
@@ -153,6 +147,12 @@ D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\zh-Hant\Microsoft
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.Common.resources.dll
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\Sideman.Core.dll
 D:\Projects\sideman\tests\Sideman.Core.Tests\bin\Debug\net10.0\Sideman.Core.pdb
+D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.csproj.AssemblyReference.cache
+D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.AssemblyInfoInputs.cache
+D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.AssemblyInfo.cs
+D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.csproj.CoreCompileInputs.cache
+D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.sourcelink.json
 D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman..D9DB7949.Up2Date
 D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\Sideman.Core.Tests.dll
 D:\Projects\sideman\tests\Sideman.Core.Tests\obj\Debug\net10.0\refint\Sideman.Core.Tests.dll

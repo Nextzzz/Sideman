@@ -4,6 +4,33 @@
         Title="Sideman" Height="640" Width="920"
         Background="#1E1E24" Foreground="#EAEAEA"
         FontFamily="Segoe UI">
+    <Window.Resources>
+        <!-- Dark-theme tab headers: the default template renders black
+             text over our dark background. -->
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#A8A8B0"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="HeaderBorder" Background="Transparent"
+                                Padding="16,9" BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="BorderBrush" Value="#6FB7FF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="Background" Value="#2A2A33"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="#2A2A33" Padding="10,8">
             <StackPanel Orientation="Horizontal">
@@ -94,12 +121,19 @@
                                  Background="#2A2A33" Foreground="#EAEAEA" BorderBrush="#444"/>
                     </DockPanel>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                        <Button Content="{Binding Song.RecordButtonText}"
-                                Command="{Binding Song.ToggleRecordCommand}" Padding="14,6"/>
-                        <TextBlock Text="{Binding Song.Status}" VerticalAlignment="Center"
-                                   Margin="14,0,0,0" Opacity="0.85"/>
-                    </StackPanel>
+                    <DockPanel Grid.Row="1" Margin="0,10,0,0">
+                        <Button DockPanel.Dock="Left" Content="{Binding Song.RecordButtonText}"
+                                Command="{Binding Song.ToggleRecordCommand}" Padding="14,6"
+                                VerticalAlignment="Top"/>
+                        <Button DockPanel.Dock="Right" Content="Лог"
+                                Command="{Binding Song.OpenLogCommand}" Padding="10,6"
+                                Margin="8,0,0,0" VerticalAlignment="Top" Opacity="0.7"/>
+                        <!-- Read-only TextBox so error text is selectable and copyable. -->
+                        <TextBox Text="{Binding Song.Status, Mode=OneWay}" IsReadOnly="True"
+                                 Background="Transparent" Foreground="#EAEAEA" BorderThickness="0"
+                                 TextWrapping="Wrap" VerticalAlignment="Center" Margin="14,0,0,0"
+                                 IsTabStop="False"/>
+                    </DockPanel>
 
                     <TextBlock Grid.Row="2" Text="{Binding Song.Summary}" FontSize="16"
                                Margin="0,12,0,6" FontWeight="SemiBold"/>
