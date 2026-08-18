@@ -40,9 +40,25 @@ public sealed class YoutubeAudioService
             FileLog.Error($"YoutubeExplode failed for {url}, falling back to yt-dlp", ex);
         }
 
-        var fallback = await DownloadWithYtDlpAsync(url, targetDirectory, ct);
-        FileLog.Info($"YouTube audio via yt-dlp: {fallback}");
-        return fallback;
+        try
+        {
+            var path = await DownloadWithYtDlpAsync(url, targetDirectory, extractorArgs: null, ct);
+            FileLog.Info($"YouTube audio via yt-dlp: {path}");
+            return path;
+        }
+        catch (Exception ex)
+        {
+            FileLog.Error("yt-dlp (default client) failed, trying web_embedded + PO tokens", ex);
+        }
+
+        // Protected (music) videos: only the embedded-player client with a
+        // PO token minted by the local bgutil provider gets stream access.
+        await EnsureBgutilServerAsync(ct);
+        var final = await DownloadWithYtDlpAsync(
+            url, targetDirectory,
+            extractorArgs: "--extractor-args \"youtube:player_client=web_embedded\"", ct);
+        FileLog.Info($"YouTube audio via yt-dlp/web_embedded: {final}");
+        return final;
     }
 
     private async Task<string> DownloadWithExplodeAsync(
@@ -66,7 +82,7 @@ public sealed class YoutubeAudioService
     }
 
     private static async Task<string> DownloadWithYtDlpAsync(
-        string url, string targetDirectory, CancellationToken ct)
+        string url, string targetDirectory, string? extractorArgs, CancellationToken ct)
     {
         string exe = await EnsureYtDlpAsync(ct);
         string jsRuntime = await GetJsRuntimeArgsAsync(ct);
@@ -80,6 +96,7 @@ public sealed class YoutubeAudioService
             // us the final file path on stdout. A JS runtime is required by
             // modern yt-dlp to solve YouTube's stream signatures.
             Arguments = $"-f \"ba[ext=m4a]/ba\" --no-playlist --no-warnings {jsRuntime} " +
+                        $"{extractorArgs} " +
                         $"--print after_move:filepath -o \"{template}\" \"{url}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -117,6 +134,64 @@ public sealed class YoutubeAudioService
         await File.WriteAllBytesAsync(YtDlpPath, bytes, ct);
         FileLog.Info($"yt-dlp.exe saved to {YtDlpPath} ({bytes.Length / 1e6:F1} MB)");
         return YtDlpPath;
+    }
+
+    private static Process? _bgutilServer;
+
+    /// <summary>
+    /// Makes sure the local bgutil PO-token provider is listening on
+    /// port 4416 — without its tokens YouTube serves 403 for most music
+    /// content. The server is a Node process built once into
+    /// tools\bgutil\server; cold start takes ~30-60 s, then it stays warm.
+    /// </summary>
+    private static async Task EnsureBgutilServerAsync(CancellationToken ct)
+    {
+        if (await IsPortOpenAsync(4416))
+            return;
+
+        string script = Path.Combine(
+            Path.GetDirectoryName(YtDlpPath)!, "bgutil", "server", "build", "main.js");
+        if (!File.Exists(script) || !CanRun("node", "--version"))
+        {
+            FileLog.Info("bgutil provider not installed — protected videos will stay unavailable. " +
+                         $"Expected script: {script}");
+            return;
+        }
+
+        FileLog.Info("Starting bgutil PO-token server...");
+        _bgutilServer = Process.Start(new ProcessStartInfo
+        {
+            FileName = "node",
+            Arguments = $"\"{script}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        });
+
+        for (int i = 0; i < 90; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(1000, ct);
+            if (await IsPortOpenAsync(4416))
+            {
+                FileLog.Info("bgutil server is up.");
+                return;
+            }
+        }
+        FileLog.Error("bgutil server did not open port 4416 within 90 s.");
+    }
+
+    private static async Task<bool> IsPortOpenAsync(int port)
+    {
+        try
+        {
+            using var client = new System.Net.Sockets.TcpClient();
+            var connect = client.ConnectAsync("127.0.0.1", port);
+            return await Task.WhenAny(connect, Task.Delay(500)) == connect && client.Connected;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string? _jsRuntimeArgs;
