@@ -33,15 +33,33 @@ public sealed class NeuralChordRecognizer : IDisposable
 
     public IReadOnlyList<string> Labels => _labels;
 
-    /// <summary>Per-frame chord labels (~92.6 ms per frame).</summary>
-    public string[] PredictFrames(float[] samples22050)
+    /// <summary>Probability that the chord stays the same between frames
+    /// (~93 ms) in the Viterbi smoothing pass. During section transitions
+    /// in a mix, single frames vote for in-between chords — raw argmax
+    /// turns those into spurious half-second segments.</summary>
+    public double ViterbiSelfTransition { get; init; } = 0.9;
+
+    /// <summary>Per-frame chord labels (~92.6 ms per frame).
+    /// <paramref name="smooth"/> false = raw argmax (golden-file parity
+    /// with the Python reference); true = Viterbi-smoothed (product).</summary>
+    public string[] PredictFrames(float[] samples22050, bool smooth = true)
+    {
+        var logProbs = PredictLogProbs(samples22050);
+        if (logProbs.Length == 0)
+            return Array.Empty<string>();
+
+        int[] path = smooth && ViterbiSelfTransition > 0
+            ? ViterbiPath(logProbs)
+            : logProbs.Select(ArgMax).ToArray();
+        return path.Select(i => _labels[i]).ToArray();
+    }
+
+    private float[][] PredictLogProbs(float[] samples22050)
     {
         var features = _cqt.Extract(samples22050);
         int frames = features.Length;
-        if (frames == 0)
-            return Array.Empty<string>();
+        var result = new float[frames][];
 
-        var result = new string[frames];
         int windows = (frames + _timestep - 1) / _timestep;
         for (int w = 0; w < windows; w++)
         {
@@ -66,14 +84,84 @@ public sealed class NeuralChordRecognizer : IDisposable
                 int dst = w * _timestep + t;
                 if (dst >= frames)
                     break;
-                int best = 0;
-                for (int c = 1; c < _labels.Length; c++)
-                    if (logits[0, t, c] > logits[0, t, best])
-                        best = c;
-                result[dst] = _labels[best];
+                // Log-softmax keeps Viterbi's reward scale comparable
+                // across frames regardless of raw logit magnitudes.
+                var row = new float[_labels.Length];
+                double max = double.MinValue;
+                for (int c = 0; c < _labels.Length; c++)
+                    max = Math.Max(max, logits[0, t, c]);
+                double sum = 0;
+                for (int c = 0; c < _labels.Length; c++)
+                    sum += Math.Exp(logits[0, t, c] - max);
+                double logSum = max + Math.Log(sum);
+                for (int c = 0; c < _labels.Length; c++)
+                    row[c] = (float)(logits[0, t, c] - logSum);
+                result[dst] = row;
             }
         }
         return result;
+    }
+
+    private static int ArgMax(float[] row)
+    {
+        int best = 0;
+        for (int c = 1; c < row.Length; c++)
+            if (row[c] > row[best])
+                best = c;
+        return best;
+    }
+
+    private int[] ViterbiPath(float[][] logProbs)
+    {
+        int frames = logProbs.Length;
+        int states = _labels.Length;
+        double logStay = Math.Log(ViterbiSelfTransition);
+        double logSwitch = Math.Log((1.0 - ViterbiSelfTransition) / (states - 1));
+
+        var score = new double[states];
+        var backlink = new int[frames][];
+        for (int s = 0; s < states; s++)
+            score[s] = logProbs[0][s];
+
+        for (int t = 1; t < frames; t++)
+        {
+            backlink[t] = new int[states];
+            int bestPrev = 0;
+            for (int s = 1; s < states; s++)
+                if (score[s] > score[bestPrev])
+                    bestPrev = s;
+
+            var next = new double[states];
+            for (int s = 0; s < states; s++)
+            {
+                double stay = score[s] + logStay;
+                double jump = score[bestPrev] + logSwitch;
+                if (stay >= jump || bestPrev == s)
+                {
+                    next[s] = stay + logProbs[t][s];
+                    backlink[t][s] = s;
+                }
+                else
+                {
+                    next[s] = jump + logProbs[t][s];
+                    backlink[t][s] = bestPrev;
+                }
+            }
+            score = next;
+        }
+
+        var path = new int[frames];
+        int cur = 0;
+        for (int s = 1; s < states; s++)
+            if (score[s] > score[cur])
+                cur = s;
+        for (int t = frames - 1; t >= 0; t--)
+        {
+            path[t] = cur;
+            if (t > 0)
+                cur = backlink[t][cur];
+        }
+        return path;
     }
 
     /// <summary>

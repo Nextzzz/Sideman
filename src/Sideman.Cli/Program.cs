@@ -33,7 +33,10 @@ switch (args[0])
                 target, Path.Combine(Path.GetTempPath(), "sideman"));
             Console.WriteLine($"Saved: {target}");
         }
-        Analyze(target);
+        if (args.Contains("--neural"))
+            AnalyzeNeural(target);
+        else
+            Analyze(target);
         return 0;
     }
 
@@ -113,6 +116,20 @@ switch (args[0])
     default:
         Console.Error.WriteLine($"unknown command: {args[0]}");
         return 1;
+}
+
+static void AnalyzeNeural(string path)
+{
+    Console.WriteLine($"Analyzing (neural) {Path.GetFileName(path)}...");
+    var (samples, _) = AudioLoader.LoadMono(path, Sideman.Neural.CqtExtractor.SampleRate);
+    using var recognizer = new Sideman.Neural.NeuralChordRecognizer(
+        Path.Combine("ml", "models", "btc_large_voca.onnx"));
+    foreach (var segment in recognizer.Recognize(samples))
+        Console.WriteLine($"  {Format(segment.Start),7} - {Format(segment.End),-7} " +
+                          Sideman.Neural.ChordLabels.Pretty(segment.Label));
+
+    static string Format(double seconds) =>
+        $"{(int)seconds / 60}:{seconds % 60:00.0}";
 }
 
 static void Analyze(string path)

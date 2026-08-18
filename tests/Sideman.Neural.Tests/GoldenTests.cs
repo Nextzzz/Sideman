@@ -88,8 +88,8 @@ public class GoldenTests
         using var recognizer = new NeuralChordRecognizer(
             Path.Combine(Models, "btc_large_voca.onnx"));
 
-        // Act
-        var frames = recognizer.PredictFrames(audio);
+        // Act: raw argmax — the golden files were produced without smoothing.
+        var frames = recognizer.PredictFrames(audio, smooth: false);
 
         // Assert: high per-frame agreement with the Python pipeline
         // (small feature deviations may flip a few transient frames).
@@ -116,8 +116,8 @@ public class GoldenTests
         using var recognizer = new NeuralChordRecognizer(
             Path.Combine(Models, "btc_large_voca.onnx"));
 
-        // Act
-        var frames = recognizer.PredictFrames(audio);
+        // Act: raw argmax — the golden files were produced without smoothing.
+        var frames = recognizer.PredictFrames(audio, smooth: false);
 
         // Assert
         int window = Math.Min(expected.Length, frames.Length);

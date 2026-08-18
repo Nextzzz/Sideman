@@ -125,7 +125,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             Status = "Аналіз…";
             var (samples44, _) = await Task.Run(() => AudioLoader.LoadMono(path));
             var result = await Task.Run(() => Analyze(path, samples44));
-            ShowAnalysis(result, path);
+            ShowAnalysis(result, path, Source.Trim());
             FileLog.Info($"Analyze done: {result.Segments.Count} segments, {result.Bpm:F0} BPM");
         }
         catch (Exception ex)
@@ -176,7 +176,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
             Status = "Аналіз запису…";
             var result = await Task.Run(() => Analyze(path, samples));
-            ShowAnalysis(result, path);
+            ShowAnalysis(result, path, "запис із мікрофона");
             Status = $"Готово. Збережено: {path}";
         }
         catch (Exception ex)
@@ -307,8 +307,17 @@ public partial class SongViewModel : ObservableObject, IDisposable
         return new AnalysisResult(rows, analysis.Bpm, duration);
     }
 
-    private void ShowAnalysis(AnalysisResult result, string audioPath)
+    private void ShowAnalysis(AnalysisResult result, string audioPath, string sourceDescription)
     {
+        Services.AnalysisStore.Save(new Services.SavedAnalysis(
+            sourceDescription,
+            audioPath,
+            DateTime.Now,
+            result.Duration,
+            result.Bpm,
+            _neuralModelPath != null ? "neural" : "templates",
+            result.Segments.Select(s => new Services.SavedSegment(s.Start, s.End, s.Chord)).ToList()));
+
         _player.Stop();
         PlayButtonText = "▶";
         NowChord = "";
