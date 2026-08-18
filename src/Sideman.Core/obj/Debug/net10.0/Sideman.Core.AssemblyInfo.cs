@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Sideman.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2716b0a51dede94938a7501b6e7eec49946fbb98")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1c0e62e7f67af7ee13ae53f8bb7b4e9992a13a7d")]
 [assembly: System.Reflection.AssemblyProductAttribute("Sideman.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Sideman.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

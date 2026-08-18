@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sideman.App/Sideman.App.csproj" />
+    <Project Path="src/Sideman.Cli/Sideman.Cli.csproj" />
+    <Project Path="src/Sideman.Core/Sideman.Core.csproj" />
+    <Project Path="src/Sideman.Media/Sideman.Media.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sideman.Core.Tests/Sideman.Core.Tests.csproj" />
+  </Folder>
+</Solution>

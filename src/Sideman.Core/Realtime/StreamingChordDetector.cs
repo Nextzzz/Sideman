@@ -29,9 +29,18 @@ public sealed class StreamingChordDetector
     private int _candidate = -1;
     private int _candidateFrames;
     private readonly int _holdFrames;
+    private readonly NoiseGate _gate = new();
 
     public Chord CurrentChord { get; private set; } = Chord.None;
     public double Confidence { get; private set; }
+
+    /// <summary>Live noise-gate sensitivity (dB above the learned room
+    /// floor). Exposed so the app can put it on a slider.</summary>
+    public double GateMarginDb
+    {
+        get => _gate.MarginDb;
+        set => _gate.MarginDb = value;
+    }
 
     public event Action<Chord>? ChordChanged;
 
@@ -83,7 +92,10 @@ public sealed class StreamingChordDetector
         var magnitude = _stft.MagnitudeOf(_window);
         var frame = _chroma.FoldFrame(magnitude, _sampleRate);
 
-        _emissions.FillEmissions(frame, _frameEmissions);
+        var verdict = _gate.Assess(frame.Rms, frame.Flatness);
+        if (verdict == GateVerdict.Quiet)
+            return; // a decaying chord: freeze the display, no new evidence
+        _emissions.FillEmissions(frame, verdict, _frameEmissions);
 
         // Forward Viterbi step.
         int states = _emissions.StateCount;

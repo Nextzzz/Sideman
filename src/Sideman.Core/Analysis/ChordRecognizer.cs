@@ -17,6 +17,14 @@ public sealed class ChordRecognizerOptions
     /// <summary>Segments shorter than this are merged into their neighbor.</summary>
     public double MinSegmentSeconds { get; init; } = 0.4;
 
+    /// <summary>Noise-gate sensitivity: how far above the file's noise
+    /// floor a frame must rise to count as playing. Offline default is
+    /// gentle: in a continuous recording the "floor" is quiet playing.</summary>
+    public double GateMarginDb { get; init; } = 3.0;
+
+    /// <summary>Frames flatter than this are treated as noise.</summary>
+    public double GateMaxFlatness { get; init; } = 0.35;
+
     public ChordEmissionModel Emissions { get; init; } = new();
 }
 
@@ -49,11 +57,21 @@ public sealed class ChordRecognizer
         int frames = chroma.Length;
         int states = _emissions.StateCount;
 
+        // Offline noise gate: the floor is the 10th percentile of the whole
+        // file's frame RMS — the quietest moments ARE the room.
+        var rms = new double[frames];
+        for (int t = 0; t < frames; t++)
+            rms[t] = chroma[t].Rms;
+        double noiseFloor = NoiseGate.Percentile(rms, 0.1);
+
         var emissions = new double[frames][];
         for (int t = 0; t < frames; t++)
         {
+            var verdict = NoiseGate.Decide(
+                chroma[t].Rms, chroma[t].Flatness, noiseFloor, _options.GateMarginDb,
+                maxFlatness: _options.GateMaxFlatness);
             emissions[t] = new double[states];
-            _emissions.FillEmissions(chroma[t], emissions[t]);
+            _emissions.FillEmissions(chroma[t], verdict, emissions[t]);
         }
 
         var path = ViterbiPath(emissions, states);

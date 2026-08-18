@@ -2,8 +2,13 @@ using Sideman.Core.Dsp;
 
 namespace Sideman.Core.Analysis;
 
-/// <summary>One analysis frame: full-range chroma, bass-range chroma, energy.</summary>
-public readonly record struct ChromaFrame(float[] Chroma, float[] Bass, float Energy);
+/// <summary>
+/// One analysis frame: full-range chroma, bass-range chroma, plus the raw
+/// signal statistics the noise gate needs — band-limited RMS (how loud)
+/// and spectral flatness (how noise-like: ~1 = broadband noise, ~0 = tonal).
+/// </summary>
+public readonly record struct ChromaFrame(
+    float[] Chroma, float[] Bass, float Energy, float Rms, float Flatness);
 
 /// <summary>
 /// Folds a magnitude spectrum into 12-bin pitch-class (chroma) vectors:
@@ -90,6 +95,22 @@ public sealed class ChromaExtractor
         int kMin = Math.Max(1, (int)Math.Ceiling(FMin / binHz));
         int kMax = Math.Min(magnitude.Length - 1, (int)Math.Floor(FMax / binHz));
 
+        // Band-limited power statistics for the noise gate. The band also
+        // conveniently excludes mains hum and rumble below FMin.
+        double sumPower = 0, sumLogPower = 0;
+        int bins = 0;
+        for (int k = kMin; k <= kMax; k++)
+        {
+            double p = (double)magnitude[k] * magnitude[k];
+            sumPower += p;
+            sumLogPower += Math.Log(p + 1e-12);
+            bins++;
+        }
+        float rms = (float)Math.Sqrt(sumPower / Math.Max(bins, 1));
+        float flatness = bins == 0
+            ? 1f
+            : (float)(Math.Exp(sumLogPower / bins) / (sumPower / bins + 1e-12));
+
         for (int k = kMin; k <= kMax; k++)
         {
             double freq = k * binHz;
@@ -157,6 +178,6 @@ public sealed class ChromaExtractor
             }
         }
 
-        return new ChromaFrame(chroma, bassOut, energy);
+        return new ChromaFrame(chroma, bassOut, energy, rms, flatness);
     }
 }

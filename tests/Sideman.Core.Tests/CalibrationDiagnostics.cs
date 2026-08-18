@@ -12,7 +12,7 @@ public class CalibrationDiagnostics
     {
         var model = Model;
         var dest = new double[model.StateCount];
-        model.FillEmissions(frame, dest);
+        model.FillEmissions(frame, GateVerdict.Active, dest);
         return Enumerable.Range(0, model.StateCount)
             .Select(s => (model.ChordOf(s).Label, Math.Exp(dest[s] / model.EmissionSharpness)))
             .OrderByDescending(x => x.Item2);

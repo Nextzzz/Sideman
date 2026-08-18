@@ -134,12 +134,21 @@ public sealed class ChordEmissionModel
     public Chord ChordOf(int state) =>
         state == NoneState ? Chord.None : Templates.Chords[state];
 
-    /// <summary>Log-emissions for one frame into <paramref name="dest"/> (length StateCount).</summary>
-    public void FillEmissions(in ChromaFrame frame, double[] dest)
+    /// <summary>Log-emissions for one frame into <paramref name="dest"/>
+    /// (length StateCount), according to the noise-gate verdict.</summary>
+    public void FillEmissions(in ChromaFrame frame, GateVerdict verdict, double[] dest)
     {
-        if (frame.Energy < SilenceEnergy)
+        if (verdict == GateVerdict.Quiet)
         {
-            // Silence: only "no chord" is plausible.
+            // No evidence either way: neutral emissions let the Viterbi
+            // carry the current chord through a quiet decay.
+            Array.Fill(dest, 0.0);
+            return;
+        }
+
+        if (verdict == GateVerdict.Noise || frame.Energy < SilenceEnergy)
+        {
+            // Silence or noise: only "no chord" is plausible.
             for (int s = 0; s < Templates.Count; s++)
                 dest[s] = -10.0;
             dest[NoneState] = 0.0;

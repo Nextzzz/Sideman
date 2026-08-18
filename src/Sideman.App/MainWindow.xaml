@@ -56,6 +56,15 @@
                                    Foreground="#6FB7FF" HorizontalAlignment="Center"/>
                         <TextBlock Text="{Binding Live.Confidence}" FontSize="16" Opacity="0.7"
                                    HorizontalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,26,0,0" HorizontalAlignment="Center">
+                            <TextBlock Text="Шумодав:" VerticalAlignment="Center" Opacity="0.7"/>
+                            <Slider Width="220" Minimum="4" Maximum="24" TickFrequency="2"
+                                    Value="{Binding Live.GateMarginDb}" Margin="10,0"/>
+                            <TextBlock Text="{Binding Live.GateMarginDb, StringFormat={}{0:F0} дБ}"
+                                       VerticalAlignment="Center" Opacity="0.7"/>
+                        </StackPanel>
+                        <TextBlock Text="менше — чутливіший · більше — суворіший до шуму"
+                                   FontSize="11" Opacity="0.45" HorizontalAlignment="Center"/>
                     </StackPanel>
                     <DockPanel Grid.Column="1">
                         <TextBlock DockPanel.Dock="Top" Text="Історія" FontSize="16" Margin="0,0,0,6" Opacity="0.8"/>

@@ -48,6 +48,45 @@ public class StreamingChordDetectorTests
     }
 
     [Test]
+    public void AddSamples_RoomNoiseOnly_ProducesNoChords()
+    {
+        // Arrange: five seconds of broadband noise — nobody is playing.
+        var detector = new StreamingChordDetector(TestSignals.SampleRate);
+        var fired = new List<string>();
+        detector.ChordChanged += c => fired.Add(c.Label);
+        var noise = new float[TestSignals.SampleRate * 5];
+        TestSignals.AddNoise(noise, 0.05);
+
+        // Act
+        FeedInChunks(detector, noise);
+
+        // Assert: the gate keeps every noise frame away from chord matching.
+        Assert.That(detector.CurrentChord, Is.EqualTo(Chord.None));
+        Assert.That(fired.Where(l => l != "N"), Is.Empty);
+    }
+
+    [Test]
+    public void AddSamples_ChordAfterNoise_IsStillDetected()
+    {
+        // Arrange: room noise first, then a strummed chord over that noise.
+        var detector = new StreamingChordDetector(TestSignals.SampleRate);
+        var noise = new float[TestSignals.SampleRate * 3];
+        TestSignals.AddNoise(noise, 0.02);
+        var chord = TestSignals.Strum(TestSignals.Voicings["E"], 2.0);
+        var mixed = new float[chord.Length];
+        TestSignals.AddNoise(mixed, 0.02);
+        for (int i = 0; i < chord.Length; i++)
+            mixed[i] += chord[i];
+
+        // Act
+        FeedInChunks(detector, noise);
+        FeedInChunks(detector, mixed);
+
+        // Assert: playing punches through the gate.
+        Assert.That(detector.CurrentChord.Label, Is.EqualTo("E"));
+    }
+
+    [Test]
     public void AddSamples_Silence_StaysOnNoChord()
     {
         // Arrange

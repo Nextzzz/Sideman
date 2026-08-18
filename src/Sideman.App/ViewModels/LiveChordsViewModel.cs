@@ -17,6 +17,12 @@ public partial class LiveChordsViewModel : ObservableObject
     [ObservableProperty]
     private string confidence = "";
 
+    /// <summary>Noise-gate sensitivity in dB; bound to the UI slider.</summary>
+    [ObservableProperty]
+    private double gateMarginDb = 12.0;
+
+    partial void OnGateMarginDbChanged(double value) => _detector.GateMarginDb = value;
+
     public ObservableCollection<string> History { get; } = new();
 
     public LiveChordsViewModel(MicrophoneCapture capture)

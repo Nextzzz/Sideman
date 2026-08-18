@@ -111,6 +111,21 @@ public class ChordRecognizerTests
     }
 
     [Test]
+    public void Recognize_NoiseOnly_IsNoChordOnly()
+    {
+        // Arrange: three seconds of broadband room noise, no playing.
+        var noise = new float[TestSignals.SampleRate * 3];
+        TestSignals.AddNoise(noise, 0.05);
+
+        // Act
+        var segments = new ChordRecognizer().Recognize(noise, TestSignals.SampleRate);
+
+        // Assert
+        Assert.That(segments.All(s => s.Chord.Quality == ChordQuality.None), Is.True,
+            "got: " + string.Join(", ", segments));
+    }
+
+    [Test]
     public void Recognize_Silence_IsNoChordOnly()
     {
         // Arrange

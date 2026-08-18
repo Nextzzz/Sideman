@@ -51,14 +51,17 @@ switch (args[0])
                 : double.Parse(arg.Split('=')[1], System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        // Fallbacks mirror the Core defaults (GuitarSet-calibrated).
         var options = new ChordRecognizerOptions
         {
-            SelfTransition = Param("self", 0.97),
+            SelfTransition = Param("self", 0.995),
+            GateMarginDb = Param("gate", 3.0),
+            GateMaxFlatness = Param("maxflat", 0.35),
             Emissions = new ChordEmissionModel
             {
-                NoChordSimilarity = Param("floor", 0.72),
-                EmissionSharpness = Param("sharp", 6.0),
-                BassRootWeight = Param("bass", 0.12),
+                NoChordSimilarity = Param("floor", 0.45),
+                EmissionSharpness = Param("sharp", 2.5),
+                BassRootWeight = Param("bass", 0.3),
                 RootChromaWeight = Param("rootw", 0.0),
                 SilenceEnergy = Param("silence", 1.0),
             },
