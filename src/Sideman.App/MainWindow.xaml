@@ -115,6 +115,10 @@
                     <DockPanel Grid.Row="0">
                         <Button DockPanel.Dock="Right" Content="Аналізувати"
                                 Command="{Binding Song.AnalyzeCommand}" Padding="14,6" Margin="8,0,0,0"/>
+                        <ComboBox DockPanel.Dock="Right" Width="90" Margin="8,0,0,0"
+                                  ItemsSource="{Binding Song.EngineModes}"
+                                  SelectedItem="{Binding Song.EngineMode}"
+                                  ToolTip="Модель аналізу: Авто — записи через гітарну, файли/YouTube через базову. Для файлів із соло-гітарою обери «Гітара»."/>
                         <Button DockPanel.Dock="Right" Content="Огляд…"
                                 Command="{Binding Song.BrowseCommand}" Padding="14,6" Margin="8,0,0,0"/>
                         <TextBox Text="{Binding Song.Source, UpdateSourceTrigger=PropertyChanged}"

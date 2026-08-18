@@ -58,6 +58,13 @@ public partial class SongViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string recordButtonText = "● Записати";
 
+    /// <summary>Which model analyzes: Авто = mic takes → guitar model,
+    /// files/YouTube → generalist; or force either one.</summary>
+    public string[] EngineModes { get; } = { "Авто", "Гітара", "Мікс" };
+
+    [ObservableProperty]
+    private string engineMode = "Авто";
+
     [ObservableProperty]
     private bool playerAvailable;
 
@@ -277,21 +284,29 @@ public partial class SongViewModel : ObservableObject, IDisposable
     }
 
     private sealed record AnalysisResult(
-        List<(double Start, double End, string Chord)> Segments, double Bpm, double Duration);
+        List<(double Start, double End, string Chord)> Segments,
+        double Bpm, double Duration, string Engine);
 
     private AnalysisResult Analyze(string audioPath, float[] samples44, bool micRecording)
     {
         double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
 
         // Domain routing: guitar-fine-tuned model for mic takes,
-        // the original generalist for files and YouTube mixes.
-        string? modelPath = micRecording
+        // the original generalist for files and YouTube mixes —
+        // unless the user forces a model explicitly.
+        bool useGuitar = EngineMode switch
+        {
+            "Гітара" => true,
+            "Мікс" => false,
+            _ => micRecording,
+        };
+        string? modelPath = useGuitar
             ? _guitarModelPath ?? _mixModelPath
-            : _mixModelPath;
+            : _mixModelPath ?? _guitarModelPath;
 
         if (modelPath != null)
         {
-            var neural = micRecording && _guitarModelPath != null
+            var neural = useGuitar && _guitarModelPath != null
                 ? _guitarNeural ??= new NeuralChordRecognizer(modelPath)
                 : _mixNeural ??= new NeuralChordRecognizer(modelPath);
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
@@ -307,7 +322,10 @@ public partial class SongViewModel : ObservableObject, IDisposable
             var novelty = onsets.NoveltyCurve(samples44, MicrophoneCapture.SampleRate);
             double bpm = new TempoEstimator().Estimate(
                 novelty, onsets.FrameRate(MicrophoneCapture.SampleRate));
-            return new AnalysisResult(segments, bpm, duration);
+            string engineName = useGuitar && _guitarModelPath != null
+                ? "нейро · гітарна модель"
+                : "нейро · базова модель";
+            return new AnalysisResult(segments, bpm, duration, engineName);
         }
 
         var analysis = new SongAnalyzer().Analyze(samples44, MicrophoneCapture.SampleRate);
@@ -315,7 +333,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             .Select(s => (s.Start, s.End,
                 s.Chord.Label == "N" ? "—" : s.Chord.Label))
             .ToList();
-        return new AnalysisResult(rows, analysis.Bpm, duration);
+        return new AnalysisResult(rows, analysis.Bpm, duration, "шаблони");
     }
 
     private void ShowAnalysis(AnalysisResult result, string audioPath, string sourceDescription)
@@ -326,7 +344,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             DateTime.Now,
             result.Duration,
             result.Bpm,
-            _mixModelPath != null || _guitarModelPath != null ? "neural" : "templates",
+            result.Engine,
             result.Segments.Select(s => new Services.SavedSegment(s.Start, s.End, s.Chord)).ToList()));
 
         _player.Stop();
@@ -350,9 +368,8 @@ public partial class SongViewModel : ObservableObject, IDisposable
                 EndSec = end,
             });
         }
-        string engine = _mixModelPath != null || _guitarModelPath != null ? "нейро" : "шаблони";
         Summary = $"{Path.GetFileName(audioPath)}   •   {result.Duration:F0} с   •   " +
-                  $"{result.Bpm:F0} BPM   •   {engine}";
+                  $"{result.Bpm:F0} BPM   •   {result.Engine}";
         Status = "Готово.";
     }
 

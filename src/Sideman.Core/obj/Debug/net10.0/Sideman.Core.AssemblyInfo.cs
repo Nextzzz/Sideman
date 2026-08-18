@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Sideman.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8f9aaf4fb4872df3e2d40018547417741ac5ed76")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+66204467d05c6cf3f2ebfcfb80c1169efc3177cd")]
 [assembly: System.Reflection.AssemblyProductAttribute("Sideman.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Sideman.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
