@@ -11,7 +11,7 @@ public static class AudioLoader
 {
     public const int TargetSampleRate = 44100;
 
-    public static (float[] Samples, int SampleRate) LoadMono(string path)
+    public static (float[] Samples, int SampleRate) LoadMono(string path, int targetRate = TargetSampleRate)
     {
         using var reader = new AudioFileReader(path);
         ISampleProvider provider = reader;
@@ -21,11 +21,11 @@ public static class AudioLoader
         else if (provider.WaveFormat.Channels > 2)
             throw new NotSupportedException($"{provider.WaveFormat.Channels}-channel audio is not supported.");
 
-        if (provider.WaveFormat.SampleRate != TargetSampleRate)
-            provider = new WdlResamplingSampleProvider(provider, TargetSampleRate);
+        if (provider.WaveFormat.SampleRate != targetRate)
+            provider = new WdlResamplingSampleProvider(provider, targetRate);
 
         var chunks = new List<float[]>();
-        var buffer = new float[TargetSampleRate]; // 1 second per read
+        var buffer = new float[targetRate]; // 1 second per read
         int total = 0;
         int read;
         while ((read = provider.Read(buffer, 0, buffer.Length)) > 0)
@@ -43,7 +43,7 @@ public static class AudioLoader
             chunk.CopyTo(samples, offset);
             offset += chunk.Length;
         }
-        return (samples, TargetSampleRate);
+        return (samples, targetRate);
     }
 
     public static void SaveWav(string path, float[] samples, int sampleRate)

@@ -25,6 +25,10 @@ public sealed class Evaluator
 
     public int Limit { get; init; } = int.MaxValue;
 
+    /// <summary>Path to a BTC ONNX model; when set, evaluation runs the
+    /// neural recognizer instead of the template engine.</summary>
+    public string? NeuralModel { get; init; }
+
     public (List<FileResult> Files, Dictionary<string, int> Confusions, long Scored, long Correct)
         Run(string jamsDir, string audioDir)
     {
@@ -38,6 +42,10 @@ public sealed class Evaluator
         var confusions = new ConcurrentDictionary<string, int>();
         long totalScored = 0, totalCorrect = 0;
 
+        using var neural = NeuralModel == null
+            ? null
+            : new Sideman.Neural.NeuralChordRecognizer(NeuralModel);
+
         Parallel.ForEach(jamsFiles, jamsPath =>
         {
             string stem = Path.GetFileNameWithoutExtension(jamsPath);
@@ -46,8 +54,27 @@ public sealed class Evaluator
                 return;
 
             var (truth, duration) = JamsChords.Read(jamsPath);
-            var (samples, sampleRate) = AudioLoader.LoadMono(wavPath);
-            var predicted = new ChordRecognizer(Options).Recognize(samples, sampleRate);
+
+            Func<double, string> predictAt;
+            if (neural != null)
+            {
+                var (samples22k, _) = AudioLoader.LoadMono(
+                    wavPath, Sideman.Neural.CqtExtractor.SampleRate);
+                var frames = neural.PredictFrames(samples22k);
+                double spf = Sideman.Neural.CqtExtractor.ChunkSeconds
+                             / Sideman.Neural.CqtExtractor.FramesPerChunk;
+                predictAt = t =>
+                {
+                    int i = Math.Clamp((int)(t / spf), 0, frames.Length - 1);
+                    return ChordMapping.ToMajMin(frames[i]) ?? "X";
+                };
+            }
+            else
+            {
+                var (samples, sampleRate) = AudioLoader.LoadMono(wavPath);
+                var segments = new ChordRecognizer(Options).Recognize(samples, sampleRate);
+                predictAt = t => PredictedAt(segments, t);
+            }
 
             int scored = 0, correct = 0;
             var localConfusions = new Dictionary<string, int>();
@@ -58,7 +85,7 @@ public sealed class Evaluator
                 if (truthLabel == null)
                     continue; // dim/aug/sus or gap — outside the vocabulary
 
-                string predLabel = PredictedAt(predicted, t);
+                string predLabel = predictAt(t);
                 scored++;
                 if (predLabel == truthLabel)
                 {

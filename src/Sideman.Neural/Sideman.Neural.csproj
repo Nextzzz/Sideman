@@ -1,17 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>Sideman.Cli</RootNamespace>
+    <RootNamespace>Sideman.Neural</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Sideman.Core\Sideman.Core.csproj" />
-    <ProjectReference Include="..\Sideman.Media\Sideman.Media.csproj" />
-    <ProjectReference Include="..\Sideman.Neural\Sideman.Neural.csproj" />
   </ItemGroup>
 
 </Project>

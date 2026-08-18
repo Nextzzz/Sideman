@@ -67,9 +67,25 @@ switch (args[0])
                 SilenceEnergy = Param("silence", 1.0),
             },
         };
-        Console.WriteLine($"floor={options.Emissions.NoChordSimilarity} self={options.SelfTransition} " +
-                          $"sharp={options.Emissions.EmissionSharpness} bass={options.Emissions.BassRootWeight}");
-        var evaluator = new Sideman.Cli.Evaluation.Evaluator { Limit = limit, Options = options };
+        string? neuralModel = args.FirstOrDefault(a => a.StartsWith("--neural"));
+        if (neuralModel != null)
+        {
+            neuralModel = neuralModel.Contains('=')
+                ? neuralModel.Split('=', 2)[1]
+                : Path.Combine("ml", "models", "btc_large_voca.onnx");
+            Console.WriteLine($"neural model: {neuralModel}");
+        }
+        else
+        {
+            Console.WriteLine($"floor={options.Emissions.NoChordSimilarity} self={options.SelfTransition} " +
+                              $"sharp={options.Emissions.EmissionSharpness} bass={options.Emissions.BassRootWeight}");
+        }
+        var evaluator = new Sideman.Cli.Evaluation.Evaluator
+        {
+            Limit = limit,
+            Options = options,
+            NeuralModel = neuralModel,
+        };
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var (files, confusions, scored, correct) = evaluator.Run(
             Path.Combine(root, "annotation"), Path.Combine(root, "audio_mono-mic"));
