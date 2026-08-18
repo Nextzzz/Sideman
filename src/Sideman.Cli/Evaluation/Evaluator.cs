@@ -29,11 +29,17 @@ public sealed class Evaluator
     /// neural recognizer instead of the template engine.</summary>
     public string? NeuralModel { get; init; }
 
+    /// <summary>When set, only files starting with one of these prefixes
+    /// are evaluated (e.g. ["04_","05_"] = held-out players).</summary>
+    public string[]? FilePrefixes { get; init; }
+
     public (List<FileResult> Files, Dictionary<string, int> Confusions, long Scored, long Correct)
         Run(string jamsDir, string audioDir)
     {
         var jamsFiles = Directory.GetFiles(jamsDir, "*.jams")
             .Where(f => Path.GetFileNameWithoutExtension(f).Contains(Filter))
+            .Where(f => FilePrefixes == null
+                || FilePrefixes.Any(p => Path.GetFileName(f).StartsWith(p)))
             .OrderBy(f => f)
             .Take(Limit)
             .ToArray();

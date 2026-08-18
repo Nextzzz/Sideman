@@ -90,15 +90,20 @@ def export(checkpoint_path, large_voca, out_name, labels):
 
 
 if __name__ == "__main__":
-    export(
-        os.path.join(REPO, "test", "btc_model_large_voca.pt"),
-        large_voca=True,
-        out_name="btc_large_voca",
-        labels=[idx2voca_chord()[i] for i in range(170)],
-    )
-    export(
-        os.path.join(REPO, "test", "btc_model.pt"),
-        large_voca=False,
-        out_name="btc_majmin",
-        labels=list(idx2chord),
-    )
+    if len(sys.argv) > 2:
+        # export_onnx.py <checkpoint.pt> <out_name>   (large-voca assumed)
+        export(sys.argv[1], large_voca=True, out_name=sys.argv[2],
+               labels=[idx2voca_chord()[i] for i in range(170)])
+    else:
+        export(
+            os.path.join(REPO, "test", "btc_model_large_voca.pt"),
+            large_voca=True,
+            out_name="btc_large_voca",
+            labels=[idx2voca_chord()[i] for i in range(170)],
+        )
+        export(
+            os.path.join(REPO, "test", "btc_model.pt"),
+            large_voca=False,
+            out_name="btc_majmin",
+            labels=list(idx2chord),
+        )

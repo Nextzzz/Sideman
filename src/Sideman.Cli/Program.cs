@@ -33,8 +33,11 @@ switch (args[0])
                 target, Path.Combine(Path.GetTempPath(), "sideman"));
             Console.WriteLine($"Saved: {target}");
         }
-        if (args.Contains("--neural"))
-            AnalyzeNeural(target);
+        var neuralArg = args.FirstOrDefault(a => a.StartsWith("--neural"));
+        if (neuralArg != null)
+            AnalyzeNeural(target, neuralArg.Contains('=')
+                ? neuralArg.Split('=', 2)[1]
+                : Path.Combine("ml", "models", "btc_large_voca.onnx"));
         else
             Analyze(target);
         return 0;
@@ -83,11 +86,15 @@ switch (args[0])
             Console.WriteLine($"floor={options.Emissions.NoChordSimilarity} self={options.SelfTransition} " +
                               $"sharp={options.Emissions.EmissionSharpness} bass={options.Emissions.BassRootWeight}");
         }
+        string[]? prefixes = args
+            .FirstOrDefault(a => a.StartsWith("--players="))
+            ?.Split('=', 2)[1].Split(',');
         var evaluator = new Sideman.Cli.Evaluation.Evaluator
         {
             Limit = limit,
             Options = options,
             NeuralModel = neuralModel,
+            FilePrefixes = prefixes,
         };
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var (files, confusions, scored, correct) = evaluator.Run(
@@ -118,12 +125,11 @@ switch (args[0])
         return 1;
 }
 
-static void AnalyzeNeural(string path)
+static void AnalyzeNeural(string path, string modelPath)
 {
-    Console.WriteLine($"Analyzing (neural) {Path.GetFileName(path)}...");
+    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}) {Path.GetFileName(path)}...");
     var (samples, _) = AudioLoader.LoadMono(path, Sideman.Neural.CqtExtractor.SampleRate);
-    using var recognizer = new Sideman.Neural.NeuralChordRecognizer(
-        Path.Combine("ml", "models", "btc_large_voca.onnx"));
+    using var recognizer = new Sideman.Neural.NeuralChordRecognizer(modelPath);
     foreach (var segment in recognizer.Recognize(samples))
         Console.WriteLine($"  {Format(segment.Start),7} - {Format(segment.End),-7} " +
                           Sideman.Neural.ChordLabels.Pretty(segment.Label));

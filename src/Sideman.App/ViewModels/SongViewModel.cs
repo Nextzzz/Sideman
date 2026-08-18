@@ -33,8 +33,10 @@ public partial class SegmentRowVm : ObservableObject
 public partial class SongViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _main;
-    private readonly string? _neuralModelPath;
-    private NeuralChordRecognizer? _neural;
+    private readonly string? _mixModelPath;    // files / YouTube (full mixes)
+    private readonly string? _guitarModelPath; // mic recordings (solo guitar)
+    private NeuralChordRecognizer? _mixNeural;
+    private NeuralChordRecognizer? _guitarNeural;
     private bool _recording;
 
     private readonly AudioPlayer _player = new();
@@ -80,10 +82,11 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<SegmentRowVm> Segments { get; } = new();
 
-    public SongViewModel(MainViewModel main, string? neuralModelPath)
+    public SongViewModel(MainViewModel main, string? mixModelPath, string? guitarModelPath)
     {
         _main = main;
-        _neuralModelPath = neuralModelPath;
+        _mixModelPath = mixModelPath;
+        _guitarModelPath = guitarModelPath;
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         timer.Tick += (_, _) => SyncPlayback();
@@ -124,7 +127,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
             Status = "Аналіз…";
             var (samples44, _) = await Task.Run(() => AudioLoader.LoadMono(path));
-            var result = await Task.Run(() => Analyze(path, samples44));
+            var result = await Task.Run(() => Analyze(path, samples44, micRecording: false));
             ShowAnalysis(result, path, Source.Trim());
             FileLog.Info($"Analyze done: {result.Segments.Count} segments, {result.Bpm:F0} BPM");
         }
@@ -175,7 +178,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             FileLog.Info($"Recording saved: {path}");
 
             Status = "Аналіз запису…";
-            var result = await Task.Run(() => Analyze(path, samples));
+            var result = await Task.Run(() => Analyze(path, samples, micRecording: true));
             ShowAnalysis(result, path, "запис із мікрофона");
             Status = $"Готово. Збережено: {path}";
         }
@@ -276,19 +279,27 @@ public partial class SongViewModel : ObservableObject, IDisposable
     private sealed record AnalysisResult(
         List<(double Start, double End, string Chord)> Segments, double Bpm, double Duration);
 
-    private AnalysisResult Analyze(string audioPath, float[] samples44)
+    private AnalysisResult Analyze(string audioPath, float[] samples44, bool micRecording)
     {
         double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
 
-        if (_neuralModelPath != null)
+        // Domain routing: guitar-fine-tuned model for mic takes,
+        // the original generalist for files and YouTube mixes.
+        string? modelPath = micRecording
+            ? _guitarModelPath ?? _mixModelPath
+            : _mixModelPath;
+
+        if (modelPath != null)
         {
-            _neural ??= new NeuralChordRecognizer(_neuralModelPath);
+            var neural = micRecording && _guitarModelPath != null
+                ? _guitarNeural ??= new NeuralChordRecognizer(modelPath)
+                : _mixNeural ??= new NeuralChordRecognizer(modelPath);
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
                 ? AudioLoader.LoadMono(audioPath, CqtExtractor.SampleRate).Samples
                 : HalfbandDecimator.Decimate(samples44);
-            var segments = _neural.Recognize(samples22)
+            var segments = neural.Recognize(samples22)
                 .Select(s => (s.Start, s.End, ChordLabels.Pretty(s.Label)))
                 .ToList();
 
@@ -315,7 +326,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             DateTime.Now,
             result.Duration,
             result.Bpm,
-            _neuralModelPath != null ? "neural" : "templates",
+            _mixModelPath != null || _guitarModelPath != null ? "neural" : "templates",
             result.Segments.Select(s => new Services.SavedSegment(s.Start, s.End, s.Chord)).ToList()));
 
         _player.Stop();
@@ -339,10 +350,10 @@ public partial class SongViewModel : ObservableObject, IDisposable
                 EndSec = end,
             });
         }
-        string engine = _neuralModelPath != null ? "нейро" : "шаблони";
+        string engine = _mixModelPath != null || _guitarModelPath != null ? "нейро" : "шаблони";
         Summary = $"{Path.GetFileName(audioPath)}   •   {result.Duration:F0} с   •   " +
                   $"{result.Bpm:F0} BPM   •   {engine}";
-        Status = "Готово. Натисни ▶ і звіряй акорди на слух.";
+        Status = "Готово.";
     }
 
     private static string FormatTime(double seconds) =>

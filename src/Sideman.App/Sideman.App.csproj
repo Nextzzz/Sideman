@@ -23,6 +23,8 @@
   <ItemGroup>
     <Content Include="..\..\ml\models\btc_large_voca.onnx" Link="models\btc_large_voca.onnx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\ml\models\btc_large_voca.json" Link="models\btc_large_voca.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\ml\models\btc_guitar.onnx" Link="models\btc_guitar.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\ml\models\btc_guitar.json" Link="models\btc_guitar.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

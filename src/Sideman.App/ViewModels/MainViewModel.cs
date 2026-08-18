@@ -36,15 +36,20 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .ToList();
         SelectedDevice = Devices.FirstOrDefault();
 
-        string? neuralModel = FindNeuralModel();
+        // Two domains, two models: the GuitarSet-fine-tuned one hears solo
+        // guitar better (live, mic recordings); the original generalist is
+        // safer on full mixes (files, YouTube).
+        string? mixModel = FindModel("btc_large_voca.onnx");
+        string? guitarModel = FindModel("btc_guitar.onnx") ?? mixModel;
+
         Tuner = new TunerViewModel(Capture);
-        Live = new LiveChordsViewModel(Capture, neuralModel);
-        Song = new SongViewModel(this, neuralModel);
+        Live = new LiveChordsViewModel(Capture, guitarModel);
+        Song = new SongViewModel(this, mixModel, guitarModel);
     }
 
-    private static string? FindNeuralModel()
+    private static string? FindModel(string fileName)
     {
-        string path = Path.Combine(AppContext.BaseDirectory, "models", "btc_large_voca.onnx");
+        string path = Path.Combine(AppContext.BaseDirectory, "models", fileName);
         return File.Exists(path) ? path : null;
     }
 

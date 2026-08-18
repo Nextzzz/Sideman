@@ -1,0 +1,7 @@
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=367
+  D = stft(
+D:\Projects\sideman\ml\.venv\Lib\site-packages\librosa\core\constantq.py:1202: UserWarning: n_fft=512 is too large for input signal of length=184
+  D = stft(
+D:\Projects\sideman\ml\finetune.py:266: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\torch\csrc\autograd\generated\python_variable_methods.cpp:823.)
+  total_loss += float(loss)
