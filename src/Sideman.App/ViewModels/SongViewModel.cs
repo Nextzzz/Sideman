@@ -112,10 +112,19 @@ public partial class SongViewModel : ObservableObject
         Busy = true;
         try
         {
+            // Keep every take on disk — real recordings from the user's
+            // own mic are the most valuable calibration material there is.
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Sideman");
+            Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, $"take_{DateTime.Now:yyyyMMdd_HHmmss}.wav");
+            AudioLoader.SaveWav(path, samples, MicrophoneCapture.SampleRate);
+
             Status = "Аналіз запису…";
             var result = await Task.Run(() =>
                 new SongAnalyzer().Analyze(samples, MicrophoneCapture.SampleRate));
-            ShowAnalysis(result, $"запис {samples.Length / (double)MicrophoneCapture.SampleRate:F0}с");
+            ShowAnalysis(result, Path.GetFileName(path));
+            Status = $"Готово. Збережено: {path}";
         }
         finally
         {

@@ -61,7 +61,8 @@ switch (args[0])
             {
                 NoChordSimilarity = Param("floor", 0.45),
                 EmissionSharpness = Param("sharp", 2.5),
-                BassRootWeight = Param("bass", 0.3),
+                BassRootWeight = Param("bass", 0.5),
+                BassFifthCredit = Param("bassfifth", 0.9),
                 RootChromaWeight = Param("rootw", 0.0),
                 SilenceEnergy = Param("silence", 1.0),
             },

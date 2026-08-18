@@ -118,7 +118,14 @@ public sealed class ChordEmissionModel
     /// <summary>Bonus when the chord's root is sounding in the bass. On
     /// strummed guitar the bass note is almost always the root — this is
     /// what separates G from its relatives Em/Bm that share most tones.</summary>
-    public double BassRootWeight { get; init; } = 0.3;
+    public double BassRootWeight { get; init; } = 0.5;
+
+    /// <summary>Partial bass credit when the bass note is the chord's
+    /// FIFTH (fraction of BassRootWeight). A muted low string turns barre F
+    /// into F/C — the fifth in the bass must not hand the chord to C.
+    /// GuitarSet sweep after peak-only bass detection: best 0.9 with
+    /// BassRootWeight 0.5 (59.4% WCSR).</summary>
+    public double BassFifthCredit { get; init; } = 0.9;
 
     /// <summary>Bonus proportional to the root's strength in the full
     /// chroma. Targets the "C# heard as Fm" family: a chord whose root is
@@ -158,8 +165,10 @@ public sealed class ChordEmissionModel
         for (int s = 0; s < Templates.Count; s++)
         {
             int root = Templates.Chords[s].Root;
+            int fifth = (root + 7) % 12;
+            double bassBonus = frame.Bass[root] + BassFifthCredit * frame.Bass[fifth];
             double sim = Templates.Similarity(frame.Chroma, s)
-                         + BassRootWeight * frame.Bass[root]
+                         + BassRootWeight * bassBonus
                          + RootChromaWeight * frame.Chroma[root];
             dest[s] = EmissionSharpness * Math.Log(Math.Max(sim, 1e-3));
         }

@@ -129,9 +129,13 @@ public sealed class ChromaExtractor
             full[pc] += weight * Math.Log(1.0 + Gamma * magnitude[k]);
 
             // Bass stays LINEAR: here we ask which note physically carries
-            // the energy, and compression would let leakage skirts of a
-            // real bass note fake a note a semitone below it.
-            if (freq <= BassFMax && nearest is >= 0 and < 128)
+            // the energy. Only LOCAL PEAKS count: the mainlobe skirt of a
+            // loud C3 slopes right through the B2 semitone band, and
+            // without this check the skirt registers as a phantom bass B.
+            bool isLocalPeak = k > 0 && k + 1 < magnitude.Length
+                && magnitude[k] >= magnitude[k - 1]
+                && magnitude[k] >= magnitude[k + 1];
+            if (isLocalPeak && freq <= BassFMax && nearest is >= 0 and < 128)
                 bassNotes[nearest] += weight * magnitude[k];
         }
 

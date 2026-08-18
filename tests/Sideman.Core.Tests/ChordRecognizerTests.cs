@@ -110,6 +110,48 @@ public class ChordRecognizerTests
         Assert.That(labels, Is.EqualTo(truth.Select(t => t.Label).ToArray()));
     }
 
+    [TestCase(0.25)] // low F2 barely rings (bad barre pressure)
+    [TestCase(0.0)]  // low F2 fully muted
+    public void Recognize_BarreFWithWeakBassString_IsStillF(double bassGain)
+    {
+        // Arrange: barre F (133211) where the low F2 is weak or dead — the
+        // hardest note of the hardest beginner chord. The lowest CLEAN
+        // note is then C3, and a naive bass detector hands the chord to C.
+        var voicing = TestSignals.Voicings["F"]; // F2 C3 F3 A3 C4 F4
+        var samples = new float[(int)(2.0 * TestSignals.SampleRate)];
+        int strumDelay = (int)(0.015 * TestSignals.SampleRate);
+        for (int n = 0; n < voicing.Length; n++)
+        {
+            double freq = Notes.FrequencyFromMidi(voicing[n]);
+            double gain = n == 0 ? bassGain : 1.0;
+            var pluck = TestSignals.Pluck(freq, 1.8, seed: 40 + n);
+            int offset = n * strumDelay;
+            for (int i = 0; i < pluck.Length && offset + i < samples.Length; i++)
+                samples[offset + i] += (float)(pluck[i] * gain / voicing.Length);
+        }
+
+        // Act
+        var labels = RecognizedLabels(samples);
+
+        // Assert
+        Assert.That(labels, Is.EqualTo(new[] { "F" }));
+    }
+
+    [Test]
+    public void Recognize_SmallFWithCInBass_IsStillF()
+    {
+        // Arrange: the common no-barre F (x33211): C3 F3 A3 C4 F4.
+        // The bass note genuinely IS C — a legitimate F/C inversion.
+        // The bass bonus must credit the fifth, not only the root.
+        var samples = TestSignals.Strum(new[] { 48, 53, 57, 60, 65 }, 2.0, seed: 7);
+
+        // Act
+        var labels = RecognizedLabels(samples);
+
+        // Assert
+        Assert.That(labels, Is.EqualTo(new[] { "F" }));
+    }
+
     [Test]
     public void Recognize_NoiseOnly_IsNoChordOnly()
     {
