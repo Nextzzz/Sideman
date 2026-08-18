@@ -8,3 +8,5 @@ audio/
 __pycache__/
 *.egg-info/
 datasets/
+ml/vendor/
+ml/.venv/
