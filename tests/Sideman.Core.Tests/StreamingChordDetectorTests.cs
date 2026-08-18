@@ -86,6 +86,73 @@ public class StreamingChordDetectorTests
         Assert.That(detector.CurrentChord.Label, Is.EqualTo("E"));
     }
 
+    /// <summary>Rhythm strumming ("бій") of one chord, every strum grazing
+    /// open strings that should be muted — they ring ~120 ms until the
+    /// fretting hand damps them. This is what real careless strumming does.</summary>
+    private static float[] RhythmWithGhosts(string chordName, double seconds, int strumsPerSecond)
+    {
+        int sr = TestSignals.SampleRate;
+        var samples = new float[(int)(seconds * sr)];
+        double interval = 1.0 / strumsPerSecond;
+        int strum = 0;
+        for (double t = 0; t < seconds - interval; t += interval, strum++)
+        {
+            int offset = (int)(t * sr);
+
+            var chord = TestSignals.Strum(
+                TestSignals.Voicings[chordName], interval, seed: 100 + strum);
+            for (int i = 0; i < chord.Length && offset + i < samples.Length; i++)
+                samples[offset + i] += chord[i];
+
+            // Grazed open strings: loud at the attack, damped after ~120 ms.
+            foreach (var (freq, seed) in new[] { (82.41, 200 + strum), (110.0, 300 + strum) })
+            {
+                var ghost = TestSignals.Pluck(freq, 0.12, seed);
+                for (int i = 0; i < ghost.Length && offset + i < samples.Length; i++)
+                    samples[offset + i] += ghost[i] * 0.7f;
+            }
+        }
+        return samples;
+    }
+
+    [Test]
+    public void AddSamples_RhythmStrummingWithGhostStrings_NeverShowsWrongChord()
+    {
+        // Arrange: two seconds of 4-per-second strumming on C with grazed
+        // E2/A2 on every hit. The transients must not flash Em/Am/E.
+        var detector = new StreamingChordDetector(TestSignals.SampleRate);
+        var fired = new List<string>();
+        detector.ChordChanged += c => fired.Add(c.Label);
+
+        // Act
+        FeedInChunks(detector, RhythmWithGhosts("C", 2.0, 4));
+
+        // Assert
+        Assert.That(detector.CurrentChord.Label, Is.EqualTo("C"),
+            "history: " + string.Join(",", fired));
+        Assert.That(fired.Where(l => l is not ("C" or "N")), Is.Empty,
+            "wrong chords flashed: " + string.Join(",", fired));
+    }
+
+    [Test]
+    public void AddSamples_ChordChangeUnderRhythm_SwitchesCleanly()
+    {
+        // Arrange: G strummed for 2 s, then C for 2 s, ghosts on every hit.
+        var detector = new StreamingChordDetector(TestSignals.SampleRate);
+        var fired = new List<string>();
+        detector.ChordChanged += c => fired.Add(c.Label);
+
+        // Act
+        FeedInChunks(detector, RhythmWithGhosts("G", 2.0, 4));
+        FeedInChunks(detector, RhythmWithGhosts("C", 2.0, 4));
+
+        // Assert: only G and C were ever displayed, in that order.
+        Assert.That(detector.CurrentChord.Label, Is.EqualTo("C"),
+            "history: " + string.Join(",", fired));
+        Assert.That(fired.Where(l => l is not ("G" or "C" or "N")), Is.Empty,
+            "wrong chords flashed: " + string.Join(",", fired));
+    }
+
     [Test]
     public void AddSamples_Silence_StaysOnNoChord()
     {

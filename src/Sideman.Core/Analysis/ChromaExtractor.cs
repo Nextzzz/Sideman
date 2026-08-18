@@ -4,11 +4,13 @@ namespace Sideman.Core.Analysis;
 
 /// <summary>
 /// One analysis frame: full-range chroma, bass-range chroma, plus the raw
-/// signal statistics the noise gate needs — band-limited RMS (how loud)
-/// and spectral flatness (how noise-like: ~1 = broadband noise, ~0 = tonal).
+/// signal statistics downstream logic needs — band-limited RMS (how loud),
+/// spectral flatness (how noise-like: ~1 = broadband noise, ~0 = tonal)
+/// and spectral flux (how much NEW energy vs the previous frame — high
+/// during strum attacks, when the chroma is full of transient garbage).
 /// </summary>
 public readonly record struct ChromaFrame(
-    float[] Chroma, float[] Bass, float Energy, float Rms, float Flatness);
+    float[] Chroma, float[] Bass, float Energy, float Rms, float Flatness, float Flux);
 
 /// <summary>
 /// Folds a magnitude spectrum into 12-bin pitch-class (chroma) vectors:
@@ -41,8 +43,13 @@ public sealed class ChromaExtractor
     /// lands between semitone bands and the whole chroma collapses.</summary>
     public double TuningOffset { get; set; }
 
+    // Previous frame's compressed spectrum, for the flux computation.
+    // Makes FoldFrame stateful: frames must be fed in temporal order.
+    private double[]? _previousCompressed;
+
     public ChromaFrame[] Extract(float[] samples, int sampleRate)
     {
+        _previousCompressed = null; // fresh flux baseline per recording
         var stft = new Stft(NFft, Hop);
         int frames = stft.FrameCount(samples.Length);
         var result = new ChromaFrame[frames];
@@ -99,12 +106,21 @@ public sealed class ChromaExtractor
         // conveniently excludes mains hum and rumble below FMin.
         double sumPower = 0, sumLogPower = 0;
         int bins = 0;
+        _previousCompressed ??= new double[magnitude.Length];
+        double flux = 0;
         for (int k = kMin; k <= kMax; k++)
         {
             double p = (double)magnitude[k] * magnitude[k];
             sumPower += p;
             sumLogPower += Math.Log(p + 1e-12);
             bins++;
+
+            // Spectral flux on compressed magnitudes (positive changes only).
+            double compressed = Math.Log(1.0 + Gamma * magnitude[k]);
+            double rise = compressed - _previousCompressed[k];
+            if (rise > 0)
+                flux += rise;
+            _previousCompressed[k] = compressed;
         }
         float rms = (float)Math.Sqrt(sumPower / Math.Max(bins, 1));
         float flatness = bins == 0
@@ -182,6 +198,6 @@ public sealed class ChromaExtractor
             }
         }
 
-        return new ChromaFrame(chroma, bassOut, energy, rms, flatness);
+        return new ChromaFrame(chroma, bassOut, energy, rms, flatness, (float)flux);
     }
 }

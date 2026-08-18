@@ -31,6 +31,21 @@ public sealed class StreamingChordDetector
     private readonly int _holdFrames;
     private readonly NoiseGate _gate = new();
 
+    // Attack handling: strum transients (pick noise, grazed strings that
+    // get damped a moment later) carry misleading chroma. We detect them
+    // via spectral flux and simply do not listen until they settle.
+    private double _fluxAverage;
+    private int _processedFrames;
+    private int _transientHold;
+    private bool _justAfterTransient;
+
+    /// <summary>Frames to ignore after a detected strum attack (~46 ms each).</summary>
+    public int TransientFrames { get; set; } = 3;
+
+    /// <summary>A frame is an attack when its flux exceeds the running
+    /// average by this factor.</summary>
+    public double OnsetFactor { get; set; } = 3.0;
+
     public Chord CurrentChord { get; private set; } = Chord.None;
     public double Confidence { get; private set; }
 
@@ -92,13 +107,42 @@ public sealed class StreamingChordDetector
         var magnitude = _stft.MagnitudeOf(_window);
         var frame = _chroma.FoldFrame(magnitude, _sampleRate);
 
+        // Attack detection: high flux vs the running average = a strum is
+        // happening right now, and this frame's chroma is transient garbage.
+        bool isAttack = _processedFrames > 5
+            && frame.Flux > OnsetFactor * _fluxAverage
+            && frame.Flux > 1.0;
+        _fluxAverage = _processedFrames == 0
+            ? frame.Flux
+            : 0.95 * _fluxAverage + 0.05 * frame.Flux;
+        _processedFrames++;
+
+        if (isAttack)
+            _transientHold = TransientFrames;
+        if (_transientHold > 0)
+        {
+            _transientHold--;
+            _justAfterTransient = _transientHold == 0;
+            return; // don't listen during the attack
+        }
+
         var verdict = _gate.Assess(frame.Rms, frame.Flatness);
         if (verdict == GateVerdict.Quiet)
             return; // a decaying chord: freeze the display, no new evidence
         _emissions.FillEmissions(frame, verdict, _frameEmissions);
 
-        // Forward Viterbi step.
+        // Forward Viterbi step. Right after a transient the chord may well
+        // have just changed — relax the transition for one frame so clean
+        // evidence can switch immediately instead of fighting inertia.
         int states = _emissions.StateCount;
+        double logStay = _logStay, logSwitch = _logSwitch;
+        if (_justAfterTransient)
+        {
+            logStay = Math.Log(0.5);
+            logSwitch = Math.Log(0.5 / (states - 1));
+            _justAfterTransient = false;
+        }
+
         int bestPrev = 0;
         for (int s = 1; s < states; s++)
             if (_scores[s] > _scores[bestPrev])
@@ -106,8 +150,8 @@ public sealed class StreamingChordDetector
 
         for (int s = 0; s < states; s++)
         {
-            double stay = _scores[s] + _logStay;
-            double jump = _scores[bestPrev] + _logSwitch;
+            double stay = _scores[s] + logStay;
+            double jump = _scores[bestPrev] + logSwitch;
             _frameEmissions[s] += Math.Max(stay, jump);
         }
 

@@ -64,12 +64,21 @@ public sealed class ChordRecognizer
             rms[t] = chroma[t].Rms;
         double noiseFloor = NoiseGate.Percentile(rms, 0.1);
 
+        // Strum transients carry misleading chroma: mask frames whose flux
+        // spikes far above the file's average (Quiet = no evidence).
+        double fluxMean = 0;
+        for (int t = 0; t < frames; t++)
+            fluxMean += chroma[t].Flux;
+        fluxMean /= Math.Max(frames, 1);
+
         var emissions = new double[frames][];
         for (int t = 0; t < frames; t++)
         {
             var verdict = NoiseGate.Decide(
                 chroma[t].Rms, chroma[t].Flatness, noiseFloor, _options.GateMarginDb,
                 maxFlatness: _options.GateMaxFlatness);
+            if (verdict == GateVerdict.Active && chroma[t].Flux > 3.0 * fluxMean)
+                verdict = GateVerdict.Quiet;
             emissions[t] = new double[states];
             _emissions.FillEmissions(chroma[t], verdict, emissions[t]);
         }
