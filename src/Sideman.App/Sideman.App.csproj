@@ -17,6 +17,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Sideman.Core\Sideman.Core.csproj" />
     <ProjectReference Include="..\Sideman.Media\Sideman.Media.csproj" />
+    <ProjectReference Include="..\Sideman.Neural\Sideman.Neural.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\ml\models\btc_large_voca.onnx" Link="models\btc_large_voca.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\ml\models\btc_large_voca.json" Link="models\btc_large_voca.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

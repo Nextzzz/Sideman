@@ -76,8 +76,41 @@ public sealed class NeuralChordRecognizer : IDisposable
         return result;
     }
 
-    /// <summary>Merged chord timeline for a full recording.</summary>
-    public IReadOnlyList<NeuralChordSegment> Recognize(float[] samples22050)
+    /// <summary>
+    /// Labels for one window of frames (zero-padded to the model's
+    /// timestep). Used by the live sliding-window detector.
+    /// </summary>
+    public string[] PredictWindow(IReadOnlyList<float[]> window)
+    {
+        var tensor = new DenseTensor<float>(new[] { 1, _timestep, CqtExtractor.Bins });
+        int count = Math.Min(window.Count, _timestep);
+        for (int t = 0; t < count; t++)
+            for (int b = 0; b < CqtExtractor.Bins; b++)
+                tensor[0, t, b] = window[t][b];
+
+        using var output = _session.Run(new[]
+        {
+            NamedOnnxValue.CreateFromTensor("features", tensor),
+        });
+        var logits = (DenseTensor<float>)output[0].Value;
+
+        var labels = new string[count];
+        for (int t = 0; t < count; t++)
+        {
+            int best = 0;
+            for (int c = 1; c < _labels.Length; c++)
+                if (logits[0, t, c] > logits[0, t, best])
+                    best = c;
+            labels[t] = _labels[best];
+        }
+        return labels;
+    }
+
+    /// <summary>Merged chord timeline for a full recording. Blips shorter
+    /// than <paramref name="minSegmentSeconds"/> are absorbed into their
+    /// neighbor — frame-level flips are not musical events.</summary>
+    public IReadOnlyList<NeuralChordSegment> Recognize(
+        float[] samples22050, double minSegmentSeconds = 0.3)
     {
         var frames = PredictFrames(samples22050);
         double spf = _cqt.SecondsPerFrame;
@@ -92,7 +125,18 @@ public sealed class NeuralChordRecognizer : IDisposable
                 start = t;
             }
         }
-        return segments;
+
+        var merged = new List<NeuralChordSegment>();
+        foreach (var segment in segments)
+        {
+            if (merged.Count > 0 && segment.End - segment.Start < minSegmentSeconds)
+                merged[^1] = merged[^1] with { End = segment.End };
+            else if (merged.Count > 0 && merged[^1].Label == segment.Label)
+                merged[^1] = merged[^1] with { End = segment.End };
+            else
+                merged.Add(segment);
+        }
+        return merged;
     }
 
     public void Dispose() => _session.Dispose();

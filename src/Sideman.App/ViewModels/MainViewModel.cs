@@ -1,3 +1,4 @@
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Sideman.Media;
@@ -35,9 +36,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .ToList();
         SelectedDevice = Devices.FirstOrDefault();
 
+        string? neuralModel = FindNeuralModel();
         Tuner = new TunerViewModel(Capture);
-        Live = new LiveChordsViewModel(Capture);
-        Song = new SongViewModel(this);
+        Live = new LiveChordsViewModel(Capture, neuralModel);
+        Song = new SongViewModel(this, neuralModel);
+    }
+
+    private static string? FindNeuralModel()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "models", "btc_large_voca.onnx");
+        return File.Exists(path) ? path : null;
     }
 
     [RelayCommand]
@@ -64,5 +72,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         MicButtonText = "■ Вимкнути мікрофон";
     }
 
-    public void Dispose() => Capture.Dispose();
+    public void Dispose()
+    {
+        Live.Dispose();
+        Capture.Dispose();
+    }
 }

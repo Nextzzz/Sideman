@@ -5,14 +5,23 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using Sideman.Core.Analysis;
 using Sideman.Media;
+using Sideman.Neural;
 
 namespace Sideman.App.ViewModels;
 
-public sealed record SegmentRow(string Start, string End, string Chord, string Confidence);
+public sealed record SegmentRow(string Start, string End, string Chord);
 
+/// <summary>
+/// Song analysis: chords come from the neural recognizer (full vocabulary,
+/// ~76% benchmark accuracy) when the model file is present, falling back
+/// to the template engine otherwise. Tempo always comes from the DSP
+/// rhythm pipeline.
+/// </summary>
 public partial class SongViewModel : ObservableObject
 {
     private readonly MainViewModel _main;
+    private readonly string? _neuralModelPath;
+    private NeuralChordRecognizer? _neural;
     private bool _recording;
 
     [ObservableProperty]
@@ -32,9 +41,10 @@ public partial class SongViewModel : ObservableObject
 
     public ObservableCollection<SegmentRow> Segments { get; } = new();
 
-    public SongViewModel(MainViewModel main)
+    public SongViewModel(MainViewModel main, string? neuralModelPath)
     {
         _main = main;
+        _neuralModelPath = neuralModelPath;
     }
 
     [RelayCommand]
@@ -69,12 +79,8 @@ public partial class SongViewModel : ObservableObject
             }
 
             Status = "Аналіз…";
-            var result = await Task.Run(() =>
-            {
-                var (samples, sampleRate) = AudioLoader.LoadMono(path);
-                return new SongAnalyzer().Analyze(samples, sampleRate);
-            });
-            ShowAnalysis(result, Path.GetFileName(path));
+            var (rows, bpm, duration) = await Task.Run(() => AnalyzeFile(path));
+            ShowRows(rows, Path.GetFileName(path), bpm, duration);
         }
         catch (Exception ex)
         {
@@ -121,9 +127,8 @@ public partial class SongViewModel : ObservableObject
             AudioLoader.SaveWav(path, samples, MicrophoneCapture.SampleRate);
 
             Status = "Аналіз запису…";
-            var result = await Task.Run(() =>
-                new SongAnalyzer().Analyze(samples, MicrophoneCapture.SampleRate));
-            ShowAnalysis(result, Path.GetFileName(path));
+            var (rows, bpm, duration) = await Task.Run(() => AnalyzeSamples(samples));
+            ShowRows(rows, Path.GetFileName(path), bpm, duration);
             Status = $"Готово. Збережено: {path}";
         }
         finally
@@ -132,18 +137,58 @@ public partial class SongViewModel : ObservableObject
         }
     }
 
-    private void ShowAnalysis(SongAnalysis analysis, string title)
+    private (List<SegmentRow> Rows, double Bpm, double Duration) AnalyzeFile(string path)
+    {
+        var (samples44, _) = AudioLoader.LoadMono(path);
+        if (_neuralModelPath == null)
+            return AnalyzeWithTemplates(samples44);
+
+        var (samples22, _) = AudioLoader.LoadMono(path, CqtExtractor.SampleRate);
+        return AnalyzeNeural(samples22, samples44);
+    }
+
+    private (List<SegmentRow> Rows, double Bpm, double Duration) AnalyzeSamples(float[] samples44)
+    {
+        if (_neuralModelPath == null)
+            return AnalyzeWithTemplates(samples44);
+        return AnalyzeNeural(HalfbandDecimator.Decimate(samples44), samples44);
+    }
+
+    private (List<SegmentRow>, double, double) AnalyzeNeural(float[] samples22, float[] samples44)
+    {
+        _neural ??= new NeuralChordRecognizer(_neuralModelPath!);
+        var segments = _neural.Recognize(samples22);
+        var rows = segments
+            .Select(s => new SegmentRow(
+                FormatTime(s.Start), FormatTime(s.End), ChordLabels.Pretty(s.Label)))
+            .ToList();
+
+        var onsets = new OnsetDetector();
+        var novelty = onsets.NoveltyCurve(samples44, MicrophoneCapture.SampleRate);
+        double bpm = new TempoEstimator().Estimate(
+            novelty, onsets.FrameRate(MicrophoneCapture.SampleRate));
+
+        return (rows, bpm, samples44.Length / (double)MicrophoneCapture.SampleRate);
+    }
+
+    private (List<SegmentRow>, double, double) AnalyzeWithTemplates(float[] samples44)
+    {
+        var analysis = new SongAnalyzer().Analyze(samples44, MicrophoneCapture.SampleRate);
+        var rows = analysis.Chords
+            .Select(s => new SegmentRow(
+                FormatTime(s.Start), FormatTime(s.End),
+                s.Chord.Label == "N" ? "—" : s.Chord.Label))
+            .ToList();
+        return (rows, analysis.Bpm, analysis.DurationSeconds);
+    }
+
+    private void ShowRows(List<SegmentRow> rows, string title, double bpm, double duration)
     {
         Segments.Clear();
-        foreach (var segment in analysis.Chords)
-        {
-            Segments.Add(new SegmentRow(
-                FormatTime(segment.Start),
-                FormatTime(segment.End),
-                segment.Chord.Label == "N" ? "—" : segment.Chord.Label,
-                segment.Confidence.ToString("F2")));
-        }
-        Summary = $"{title}   •   {analysis.DurationSeconds:F0} с   •   {analysis.Bpm:F0} BPM";
+        foreach (var row in rows)
+            Segments.Add(row);
+        string engine = _neuralModelPath != null ? "нейро" : "шаблони";
+        Summary = $"{title}   •   {duration:F0} с   •   {bpm:F0} BPM   •   {engine}";
         Status = "Готово.";
     }
 

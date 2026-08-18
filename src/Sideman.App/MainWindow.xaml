@@ -52,10 +52,11 @@
                         <ColumnDefinition Width="240"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <TextBlock Text="{Binding Live.CurrentChord}" FontSize="160" FontWeight="Bold"
+                        <TextBlock Text="{Binding Live.ProvisionalChord}" FontSize="44"
+                                   Foreground="#77808A" HorizontalAlignment="Center" MinHeight="58"
+                                   Visibility="{Binding Live.NeuralAvailable, Converter={StaticResource BoolToVisibility}}"/>
+                        <TextBlock Text="{Binding Live.ConfirmedChord}" FontSize="150" FontWeight="Bold"
                                    Foreground="#6FB7FF" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding Live.Confidence}" FontSize="16" Opacity="0.7"
-                                   HorizontalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" Margin="0,26,0,0" HorizontalAlignment="Center">
                             <TextBlock Text="Шумодав:" VerticalAlignment="Center" Opacity="0.7"/>
                             <Slider Width="220" Minimum="4" Maximum="24" TickFrequency="2"
@@ -109,8 +110,7 @@
                             <GridView>
                                 <GridViewColumn Header="Початок" Width="90" DisplayMemberBinding="{Binding Start}"/>
                                 <GridViewColumn Header="Кінець" Width="90" DisplayMemberBinding="{Binding End}"/>
-                                <GridViewColumn Header="Акорд" Width="120" DisplayMemberBinding="{Binding Chord}"/>
-                                <GridViewColumn Header="Впевненість" Width="110" DisplayMemberBinding="{Binding Confidence}"/>
+                                <GridViewColumn Header="Акорд" Width="140" DisplayMemberBinding="{Binding Chord}"/>
                             </GridView>
                         </ListView.View>
                     </ListView>

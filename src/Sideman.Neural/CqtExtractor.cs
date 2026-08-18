@@ -83,6 +83,40 @@ public sealed class CqtExtractor
         return features.ToArray();
     }
 
+    /// <summary>Half-length of the longest (lowest-frequency) kernel — how
+    /// much context a frame needs on each side of its center.</summary>
+    public int MaxKernelHalf => _lengths[0] / 2 + 1;
+
+    /// <summary>
+    /// One CQT frame centered at <paramref name="center"/>, kernels clipped
+    /// to the span. Used by the live sliding-window path (no 10-second
+    /// chunk semantics — a live stream has no chunk boundaries).
+    /// </summary>
+    public void ComputeFrame(ReadOnlySpan<float> samples, int center, float[] dest)
+    {
+        for (int k = 0; k < Bins; k++)
+        {
+            var re = _kernelsRe[k];
+            var im = _kernelsIm[k];
+            int kernelLength = _lengths[k];
+            int start = center - kernelLength / 2;
+
+            int lo = Math.Max(start, 0);
+            int hi = Math.Min(start + kernelLength, samples.Length);
+
+            double sumRe = 0, sumIm = 0;
+            for (int i = lo; i < hi; i++)
+            {
+                float s = samples[i];
+                int n = i - start;
+                sumRe += s * re[n];
+                sumIm += s * im[n];
+            }
+            double magnitude = LibrosaGain * Math.Sqrt(sumRe * sumRe + sumIm * sumIm);
+            dest[k] = (float)Math.Log(magnitude + 1e-6);
+        }
+    }
+
     private void AppendChunk(float[] samples, int offset, int length, List<float[]> features)
     {
         // librosa: frames = 1 + length // hop, frame m centered at m * hop,
