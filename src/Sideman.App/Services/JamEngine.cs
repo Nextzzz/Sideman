@@ -27,12 +27,16 @@ public sealed class JamEngine : IDisposable
     private readonly float[] _kick = DrumKit.Kick();
     private readonly float[] _snare = DrumKit.Snare();
     private readonly float[] _hat = DrumKit.Hat();
+    private readonly float[] _click = DrumKit.Click();
     private readonly Dictionary<int, float[]> _bassNotes = new();
 
     private readonly System.Timers.Timer _planner;
     private long _capturedSamples;
-    private double _lastPlannedBeat;
+    private long _lastPlannedIndex = long.MinValue;
     private readonly object _planLock = new();
+
+    /// <summary>Extra metronome click on every beat.</summary>
+    public bool MetronomeOn { get; set; }
 
     public bool Running { get; private set; }
     public double Bpm => _follower.Bpm;
@@ -51,10 +55,20 @@ public sealed class JamEngine : IDisposable
         _capture = capture;
         _onsets = new StreamingOnsetDetector(Sr);
         _chords = new StreamingChordDetector(Sr);
-        _onsets.OnsetDetected += _follower.OnOnset;
-        _follower.LockLost += () => FileLog.Info("Jam: tempo lock lost");
+        // Fixed-tempo mode: we listen only until the BPM is understood,
+        // then FREEZE the grid — the band plays like a drum machine and
+        // the player follows it. No corrections, no feedback runaway.
+        _onsets.OnsetDetected += t =>
+        {
+            if (!_follower.Locked)
+                _follower.OnOnset(t);
+        };
         _follower.LockAcquired += () =>
-            FileLog.Info($"Jam: tempo locked at {_follower.Bpm:F0} BPM");
+        {
+            lock (_planLock)
+                _lastPlannedIndex = long.MinValue;
+            FileLog.Info($"Jam: tempo fixed at {_follower.Bpm:F0} BPM");
+        };
 
         _planner = new System.Timers.Timer(80);
         _planner.Elapsed += (_, _) => PlanAhead();
@@ -75,7 +89,11 @@ public sealed class JamEngine : IDisposable
         _output = new WaveOutEvent { DesiredLatency = 90, NumberOfBuffers = 3 };
         _output.Init(_scheduler);
         _output.Play();
-        _lastPlannedBeat = 0;
+        lock (_planLock)
+        {
+            _lastPlannedIndex = long.MinValue;
+            _ownHits.Clear();
+        }
         _planner.Start();
         Running = true;
         FileLog.Info("Jam engine started");
@@ -102,12 +120,18 @@ public sealed class JamEngine : IDisposable
         {
             double captureNow = Interlocked.Read(ref _capturedSamples) / (double)Sr;
             double horizon = captureNow + 0.9;
-            double from = Math.Max(_lastPlannedBeat, captureNow + 0.05);
 
-            foreach (var beat in _follower.BeatsBetween(from, horizon))
+            foreach (var beat in _follower.BeatsBetween(captureNow + 0.05, horizon))
             {
+                // Dedup by BEAT NUMBER, not by time: PLL corrections move
+                // beat times slightly every onset, and a time-based cursor
+                // re-schedules the same beat over and over (the "diesel
+                // generator" bug).
+                long index = _follower.BeatIndex(beat);
+                if (index <= _lastPlannedIndex)
+                    continue;
                 ScheduleBeat(beat, captureNow);
-                _lastPlannedBeat = beat;
+                _lastPlannedIndex = index;
             }
         }
     }
@@ -125,6 +149,8 @@ public sealed class JamEngine : IDisposable
 
         // Drums: kick/snare alternate, hats on beat and off-beat.
         _scheduler.Schedule(startSample, index % 2 == 0 ? _kick : _snare, DrumGain);
+        if (MetronomeOn)
+            _scheduler.Schedule(startSample, _click, 0.9f);
         _scheduler.Schedule(startSample, _hat, DrumGain * 0.6f);
         _scheduler.Schedule(startSample + (long)(period / 2 * Sr), _hat, DrumGain * 0.45f);
 

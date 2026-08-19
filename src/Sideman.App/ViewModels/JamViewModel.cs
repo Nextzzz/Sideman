@@ -31,9 +31,13 @@ public partial class JamViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private double latencyMs = 120;
 
+    [ObservableProperty]
+    private bool metronomeOn;
+
     partial void OnDrumVolumeChanged(double value) => _engine.DrumGain = (float)value;
     partial void OnBassVolumeChanged(double value) => _engine.BassGain = (float)value;
     partial void OnLatencyMsChanged(double value) => _engine.LatencyOffsetMs = value;
+    partial void OnMetronomeOnChanged(bool value) => _engine.MetronomeOn = value;
 
     public JamViewModel(MainViewModel main)
     {
@@ -68,7 +72,7 @@ public partial class JamViewModel : ObservableObject, IDisposable
             return;
         if (_engine.Locked)
         {
-            Status = "Граю з тобою 🥁";
+            Status = "Темп зафіксовано — грай! 🥁";
             BpmText = $"{_engine.Bpm:F0} BPM";
         }
         else

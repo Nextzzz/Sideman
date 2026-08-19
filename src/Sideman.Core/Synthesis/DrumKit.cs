@@ -36,6 +36,19 @@ public static class DrumKit
         return samples;
     }
 
+    public static float[] Click(int sampleRate = 44100)
+    {
+        // Metronome tick: a short bright sine burst.
+        int n = (int)(0.03 * sampleRate);
+        var samples = new float[n];
+        for (int i = 0; i < n; i++)
+        {
+            double t = i / (double)sampleRate;
+            samples[i] = (float)(Math.Sin(2 * Math.PI * 1400 * t) * Math.Exp(-t * 120)) * 0.8f;
+        }
+        return samples;
+    }
+
     public static float[] Hat(int sampleRate = 44100)
     {
         int n = (int)(0.05 * sampleRate);
