@@ -12,13 +12,24 @@ Run:
 """
 import csv
 import os
+import subprocess
 
 import librosa
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Sideman", "tools")
-os.environ["PATH"] = TOOLS + os.pathsep + os.environ["PATH"]  # ffmpeg for m4a
+FFMPEG = os.path.join(TOOLS, "ffmpeg.exe")
+
+
+def load_audio(path, sr):
+    """Decode any container to mono float32 via an ffmpeg pipe —
+    librosa 1.x dropped its audioread fallback and can't open m4a."""
+    raw = subprocess.run(
+        [FFMPEG, "-v", "quiet", "-i", path, "-f", "f32le", "-ac", "1",
+         "-ar", str(sr), "-"],
+        capture_output=True, timeout=120).stdout
+    return np.frombuffer(raw, dtype=np.float32).copy()
 
 BILLBOARD = os.path.normpath(os.path.join(HERE, "..", "datasets", "billboard"))
 AUDIO_DIR = os.path.join(BILLBOARD, "audio")
@@ -75,7 +86,7 @@ def expected_chroma(lab_path, n_frames):
 
 
 def align(audio_path, lab_path):
-    wav, _ = librosa.load(audio_path, sr=SR, mono=True)
+    wav = load_audio(audio_path, SR)
     real = librosa.feature.chroma_stft(y=wav, sr=SR, hop_length=HOP).T
     real /= np.linalg.norm(real, axis=1, keepdims=True) + 1e-9
 
@@ -86,6 +97,7 @@ def align(audio_path, lab_path):
 
     max_shift = int(MAX_OFFSET_S / SPF)
     best_score, best_shift = -1.0, 0
+    all_scores = []
     # shift > 0: audio starts EARLIER than the annotation clock.
     for shift in range(-max_shift, max_shift + 1):
         if shift >= 0:
@@ -102,9 +114,13 @@ def align(audio_path, lab_path):
         if mask.sum() < 100:
             continue
         score = float(sims[mask].mean())
+        all_scores.append(score)
         if score > best_score:
             best_score, best_shift = score, shift
-    return best_shift * SPF, best_score
+    # Peak contrast: a true match spikes at the right shift; a wrong
+    # version stays flat no matter how you slide it.
+    margin = best_score - float(np.median(all_scores)) if all_scores else 0.0
+    return best_shift * SPF, best_score, margin
 
 
 def main():
@@ -112,7 +128,7 @@ def main():
     out_path = os.path.join(BILLBOARD, "alignment.csv")
     with open(out_path, "w", encoding="utf-8", newline="") as out:
         writer = csv.writer(out)
-        writer.writerow(["id", "offset_s", "score", "verdict"])
+        writer.writerow(["id", "offset_s", "score", "margin", "verdict"])
         passed = 0
         for n, name in enumerate(files):
             entry = name[:-4]
@@ -120,10 +136,13 @@ def main():
             if not os.path.exists(lab):
                 continue
             try:
-                offset, score = align(os.path.join(AUDIO_DIR, name), lab)
-                verdict = "pass" if score >= PASS_SCORE else "reject"
+                offset, score, margin = align(os.path.join(AUDIO_DIR, name), lab)
+                # Provisional verdict; final thresholds picked from the
+                # whole batch's distribution (CSV keeps raw numbers).
+                verdict = "pass" if margin >= 0.08 and score >= 0.40 else "reject"
                 passed += verdict == "pass"
-                writer.writerow([entry, f"{offset:.2f}", f"{score:.3f}", verdict])
+                writer.writerow([entry, f"{offset:.2f}", f"{score:.3f}",
+                                 f"{margin:.3f}", verdict])
             except Exception as ex:
                 writer.writerow([entry, "", "", f"error: {ex}"])
             if (n + 1) % 50 == 0:

@@ -16,6 +16,12 @@ TIMESTEP = 108
 def features_for(audio_path):
     """Returns (features [frames, 144], seconds_per_frame)."""
     wav, sr = librosa.load(audio_path, sr=SAMPLE_RATE, mono=True)
+    return features_from_wav(wav)
+
+
+def features_from_wav(wav):
+    """Same pipeline for audio already in memory (22050 Hz mono)."""
+    sr = SAMPLE_RATE
 
     # BTC computes CQT in 10-second chunks and concatenates — replicate
     # exactly, chunk boundaries included.
