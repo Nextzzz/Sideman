@@ -61,7 +61,8 @@ def ensure_bgutil():
 
 
 def run_ytdlp(args, timeout):
-    return subprocess.run([YTDLP, *args, "--no-warnings", "--js-runtimes", "node"],
+    return subprocess.run([YTDLP, *args, "--no-warnings", "--js-runtimes", "node",
+                           "--socket-timeout", "30", "--retries", "2"],
                           capture_output=True, text=True, timeout=timeout)
 
 
