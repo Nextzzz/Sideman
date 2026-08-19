@@ -6,7 +6,11 @@ adding a model costs only inference. Raw argmax (no Viterbi/key
 prior) — a fair like-for-like model ranking.
 
 Run:
-    .venv/Scripts/python hooktheory_eval.py [limit]
+    .venv/Scripts/python hooktheory_eval.py [limit] [audio_dir]
+
+audio_dir 'audio' (default) scores the original mixes; 'audio_sep'
+scores the demucs bass+other renders from demucs_prep.py — songs
+missing there are skipped, so pass the same limit for a fair A/B.
 """
 import csv
 import json
@@ -47,7 +51,8 @@ def read_lab(path):
     return segments
 
 
-def main(limit):
+def main(limit, audio_dir="audio"):
+    ext = ".wav" if audio_dir == "audio_sep" else ".m4a"
     sessions = {}
     labels = {}
     for name in MODELS:
@@ -64,7 +69,7 @@ def main(limit):
     per_song = {name: [] for name in MODELS}
     done = 0
     for row in rows:
-        audio_path = os.path.join(ROOT, "audio", row["id"] + ".m4a")
+        audio_path = os.path.join(ROOT, audio_dir, row["id"] + ext)
         lab_path = os.path.join(ROOT, "labs", row["id"] + ".lab")
         if not os.path.exists(audio_path) or not os.path.exists(lab_path):
             continue
@@ -98,7 +103,7 @@ def main(limit):
                 f"{n} {correct[n] / max(scored[n], 1):.1%}" for n in MODELS),
                 flush=True)
 
-    print(f"\n=== HookTheory benchmark, {done} songs ===")
+    print(f"\n=== HookTheory benchmark ({audio_dir}), {done} songs ===")
     for name in MODELS:
         print(f"{name}: WCSR (majmin) {correct[name] / max(scored[name], 1):.2%}")
         print("  worst 3:", [(f"{a:.0%}", b)
@@ -106,4 +111,5 @@ def main(limit):
 
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 10 ** 9)
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else 10 ** 9,
+         sys.argv[2] if len(sys.argv) > 2 else "audio")
