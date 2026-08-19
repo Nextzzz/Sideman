@@ -18,8 +18,17 @@ public sealed class JamEngine : IDisposable
 
     private readonly MicrophoneCapture _capture;
     private readonly StreamingOnsetDetector _onsets;
-    private readonly TempoPhaseFollower _follower = new();
     private readonly StreamingChordDetector _chords;
+
+    // Frozen beat grid (drum-machine mode): estimated patiently while
+    // listening, then locked for the whole session.
+    private bool _locked;
+    private double _period;
+    private double _anchor;
+    private double _listenStart;
+    private double _previousEstimate;
+    private double _lastEstimateAt;
+    private readonly List<(double Time, double Strength)> _recentOnsets = new();
 
     private readonly SampleScheduler _scheduler = new();
     private WaveOutEvent? _output;
@@ -39,8 +48,8 @@ public sealed class JamEngine : IDisposable
     public bool MetronomeOn { get; set; }
 
     public bool Running { get; private set; }
-    public double Bpm => _follower.Bpm;
-    public bool Locked => _follower.Locked;
+    public double Bpm => _locked ? 60.0 / _period : 0;
+    public bool Locked => _locked;
     public string CurrentChordLabel =>
         _chords.CurrentChord.Label == "N" ? "—" : _chords.CurrentChord.Label;
 
@@ -58,16 +67,15 @@ public sealed class JamEngine : IDisposable
         // Fixed-tempo mode: we listen only until the BPM is understood,
         // then FREEZE the grid — the band plays like a drum machine and
         // the player follows it. No corrections, no feedback runaway.
-        _onsets.OnsetDetected += t =>
+        _onsets.OnsetDetected += (time, strength) =>
         {
-            if (!_follower.Locked)
-                _follower.OnOnset(t);
-        };
-        _follower.LockAcquired += () =>
-        {
+            if (_locked)
+                return;
             lock (_planLock)
-                _lastPlannedIndex = long.MinValue;
-            FileLog.Info($"Jam: tempo fixed at {_follower.Bpm:F0} BPM");
+            {
+                _recentOnsets.Add((time, strength));
+                _recentOnsets.RemoveAll(o => o.Time < time - 10.0);
+            }
         };
 
         _planner = new System.Timers.Timer(80);
@@ -90,7 +98,13 @@ public sealed class JamEngine : IDisposable
         _output.Init(_scheduler);
         _output.Play();
         lock (_planLock)
+        {
+            _locked = false;
+            _previousEstimate = 0;
             _lastPlannedIndex = long.MinValue;
+            _recentOnsets.Clear();
+            _listenStart = Interlocked.Read(ref _capturedSamples) / (double)Sr;
+        }
         _planner.Start();
         Running = true;
         FileLog.Info("Jam engine started");
@@ -100,6 +114,7 @@ public sealed class JamEngine : IDisposable
     {
         if (!Running)
             return;
+        _locked = false;
         _planner.Stop();
         _capture.ChunkAvailable -= OnChunk;
         _scheduler.Clear();
@@ -111,29 +126,75 @@ public sealed class JamEngine : IDisposable
 
     private void PlanAhead()
     {
-        if (!Running || !_follower.Locked)
+        if (!Running)
             return;
         lock (_planLock)
         {
             double captureNow = Interlocked.Read(ref _capturedSamples) / (double)Sr;
-            double horizon = captureNow + 0.9;
 
-            foreach (var beat in _follower.BeatsBetween(captureNow + 0.05, horizon))
+            if (!_locked)
             {
-                // Dedup by BEAT NUMBER, not by time: PLL corrections move
-                // beat times slightly every onset, and a time-based cursor
-                // re-schedules the same beat over and over (the "diesel
-                // generator" bug).
-                long index = _follower.BeatIndex(beat);
+                TryLock(captureNow);
+                return;
+            }
+
+            double horizon = captureNow + 0.9;
+            double from = captureNow + 0.05;
+            double k = Math.Ceiling((from - _anchor) / _period + 1e-9);
+            for (double beat = _anchor + k * _period; beat <= horizon; beat += _period)
+            {
+                // Dedup by BEAT NUMBER: each beat plays exactly once.
+                long index = (long)Math.Round((beat - _anchor) / _period);
                 if (index <= _lastPlannedIndex)
                     continue;
-                ScheduleBeat(beat, captureNow);
+                ScheduleBeat(beat, captureNow, index);
                 _lastPlannedIndex = index;
             }
         }
     }
 
-    private void ScheduleBeat(double beatCaptureTime, double captureNow)
+    /// <summary>
+    /// Patient tempo fixing: at least 8 s of listening and 12 attacks,
+    /// then the offline-grade estimator (novelty autocorrelation with an
+    /// octave prior — the thing that picks 70, not 140, under eighths)
+    /// must produce the SAME answer twice in a row before we commit.
+    /// </summary>
+    private void TryLock(double captureNow)
+    {
+        if (captureNow - _listenStart < 8.0 || _recentOnsets.Count < 12)
+            return;
+        if (captureNow - _lastEstimateAt < 1.0)
+            return;
+        _lastEstimateAt = captureNow;
+
+        var novelty = _onsets.NoveltySnapshot();
+        double bpm = new TempoEstimator { PriorBpm = 95, PriorOctaves = 0.8 }
+            .Estimate(novelty, _onsets.NoveltyFrameRate);
+        if (bpm < 50 || bpm > 190)
+            return;
+
+        if (_previousEstimate > 0
+            && Math.Abs(bpm - _previousEstimate) / _previousEstimate < 0.03)
+        {
+            _period = 60.0 / ((bpm + _previousEstimate) / 2);
+            // Phase from the strongest recent attack — an accented downstroke.
+            var anchor = _recentOnsets
+                .Where(o => o.Time > captureNow - 3.0)
+                .OrderByDescending(o => o.Strength)
+                .FirstOrDefault();
+            _anchor = anchor.Time > 0 ? anchor.Time : captureNow;
+            _lastPlannedIndex = long.MinValue;
+            _locked = true;
+            FileLog.Info($"Jam: tempo fixed at {60.0 / _period:F1} BPM " +
+                         $"(two stable estimates), anchor {_anchor:F2}");
+        }
+        else
+        {
+            _previousEstimate = bpm;
+        }
+    }
+
+    private void ScheduleBeat(double beatCaptureTime, double captureNow, long index)
     {
         // Map capture-clock time to the output stream position.
         double lead = beatCaptureTime - captureNow - LatencyOffsetMs / 1000.0;
@@ -141,8 +202,7 @@ public sealed class JamEngine : IDisposable
         if (startSample < _scheduler.PositionSamples)
             return; // would land in the past — skip rather than stutter
 
-        long index = _follower.BeatIndex(beatCaptureTime);
-        double period = 60.0 / Math.Max(_follower.Bpm, 1);
+        double period = _period;
 
         // Drums: kick/snare alternate, hats on beat and off-beat.
         _scheduler.Schedule(startSample, index % 2 == 0 ? _kick : _snare, DrumGain);

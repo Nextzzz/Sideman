@@ -28,7 +28,26 @@ public sealed class StreamingOnsetDetector
     /// <summary>Peak must exceed the recent median by this factor.</summary>
     public double Sensitivity { get; set; } = 2.5;
 
-    public event Action<double>? OnsetDetected; // capture-clock seconds
+    /// <summary>(time seconds, strength = flux/median) per detected attack.
+    /// Strength separates accented downstrokes from grace notes.</summary>
+    public event Action<double, double>? OnsetDetected;
+
+    // Rolling novelty for offline-grade tempo estimation on live audio.
+    private readonly double[] _noveltyRing = new double[1024]; // ~12 s
+    private long _noveltyWritten;
+
+    public double NoveltyFrameRate => _sampleRate / (double)Hop;
+
+    /// <summary>Chronological copy of the recent novelty curve.</summary>
+    public double[] NoveltySnapshot()
+    {
+        long written = _noveltyWritten;
+        int count = (int)Math.Min(written, _noveltyRing.Length);
+        var result = new double[count];
+        for (int i = 0; i < count; i++)
+            result[i] = _noveltyRing[(int)((written - count + i) % _noveltyRing.Length)];
+        return result;
+    }
 
     public StreamingOnsetDetector(int sampleRate)
     {
@@ -72,6 +91,8 @@ public sealed class StreamingOnsetDetector
         _fluxHistory[(int)(_frameIndex % _fluxHistory.Length)] = flux;
         if (_fluxCount < _fluxHistory.Length)
             _fluxCount++;
+        _noveltyRing[(int)(_noveltyWritten % _noveltyRing.Length)] = flux;
+        _noveltyWritten++;
 
         // Peak test on the PREVIOUS frame (needs both neighbors known).
         if (_fluxCount > 40 && _fluxPrev1 > _fluxPrev2 && _fluxPrev1 >= flux)
@@ -82,7 +103,7 @@ public sealed class StreamingOnsetDetector
                 && time - _lastOnsetTime > 0.10)
             {
                 _lastOnsetTime = time;
-                OnsetDetected?.Invoke(time);
+                OnsetDetected?.Invoke(time, _fluxPrev1 / Math.Max(median, 1e-6));
             }
         }
         _fluxPrev2 = _fluxPrev1;
