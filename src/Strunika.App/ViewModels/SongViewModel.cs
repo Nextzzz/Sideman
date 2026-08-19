@@ -293,13 +293,14 @@ public partial class SongViewModel : ObservableObject, IDisposable
     {
         double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
 
-        // Model choice: Авто routes mic takes to the guitar model, files to
-        // mix (base if untrained). Files never auto-route to guitar: on the
-        // 178-song HookTheory benchmark it trails base/mix by 4pp, and on a
-        // consumer-mic solo take it wavered on non-diatonic majors where base
-        // was stable — revisit after a robustness re-train. Explicit modes
-        // exist for A/B — the base generalist is deliberately kept forever.
-        bool autoGuitar = micRecording;
+        // Model choice: Авто routes mic takes and bass-free (guitar-domain)
+        // files to guitar2, everything else to mix (base if untrained).
+        // guitar2 made file routing safe again: on HookTheory-178 it ties
+        // base/mix (70.4 vs 70.8/70.4) while keeping +8pp on solo guitar —
+        // a wrong route now costs ~nothing, a right one wins big. Explicit
+        // modes exist for A/B — the base generalist is kept forever.
+        bool autoGuitar = micRecording || AudioDomainClassifier.IsGuitarLike(
+            samples44, MicrophoneCapture.SampleRate);
         (string? modelPath, string engineName) = EngineMode switch
         {
             "Гітара" => (_guitarModelPath, "нейро · гітарна"),
