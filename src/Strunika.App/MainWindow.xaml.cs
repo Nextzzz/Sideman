@@ -14,6 +14,12 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
     }
 
+    private void Devices_DropDownOpened(object? sender, EventArgs e)
+    {
+        // Virtual mics (phone-as-mic apps) appear after startup.
+        _viewModel.RefreshDevices();
+    }
+
     private void SongList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // Keep the currently sounding chord row visible during playback.

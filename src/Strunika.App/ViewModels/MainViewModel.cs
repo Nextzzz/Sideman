@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,7 +19,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public LiveChordsViewModel Live { get; }
     public SongViewModel Song { get; }
 
-    public IReadOnlyList<DeviceItem> Devices { get; }
+    public ObservableCollection<DeviceItem> Devices { get; } = new();
 
     [ObservableProperty]
     private DeviceItem? selectedDevice;
@@ -31,10 +32,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel()
     {
-        Devices = MicrophoneCapture.Devices()
-            .Select(d => new DeviceItem(d.Index, d.Name))
-            .ToList();
-        SelectedDevice = Devices.FirstOrDefault();
+        RefreshDevices();
 
         // Model roster: base generalist (always kept for A/B comparison),
         // GuitarSet fine-tune for live/mic, Billboard fine-tune for mixes
@@ -48,6 +46,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Song = new SongViewModel(this, baseModel, guitarModel, mixModel);
         // Jam mode is shelved: the engine lives on in Services/JamEngine
         // until the scheduling bug is beaten on a simulation bench.
+    }
+
+    /// <summary>Re-enumerate inputs — virtual mics (e.g. a phone) appear
+    /// after the app has started, so the list must be refreshable.</summary>
+    public void RefreshDevices()
+    {
+        var current = SelectedDevice?.Name;
+        Devices.Clear();
+        foreach (var (index, name) in MicrophoneCapture.Devices())
+            Devices.Add(new DeviceItem(index, name));
+        SelectedDevice = Devices.FirstOrDefault(d => d.Name == current)
+                         ?? Devices.FirstOrDefault();
+    }
+
+    partial void OnSelectedDeviceChanged(DeviceItem? value)
+    {
+        // Switching device while capturing: restart on the new input.
+        if (value != null && MicRunning)
+            Capture.Start(value.Index);
     }
 
     private static string? FindModel(string fileName)

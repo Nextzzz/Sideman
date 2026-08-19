@@ -36,7 +36,8 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Мікрофон:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <ComboBox Width="300" ItemsSource="{Binding Devices}"
-                          SelectedItem="{Binding SelectedDevice}"/>
+                          SelectedItem="{Binding SelectedDevice}"
+                          DropDownOpened="Devices_DropDownOpened"/>
                 <Button Content="{Binding MicButtonText}" Command="{Binding ToggleMicCommand}"
                         Margin="10,0,0,0" Padding="12,4"/>
             </StackPanel>
