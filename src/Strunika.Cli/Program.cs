@@ -34,10 +34,14 @@ switch (args[0])
             Console.WriteLine($"Saved: {target}");
         }
         var neuralArg = args.FirstOrDefault(a => a.StartsWith("--neural"));
+        var priorArg = args.FirstOrDefault(a => a.StartsWith("--keyprior="));
+        double keyPrior = priorArg == null
+            ? 0.5
+            : double.Parse(priorArg.Split('=')[1], System.Globalization.CultureInfo.InvariantCulture);
         if (neuralArg != null)
             AnalyzeNeural(target, neuralArg.Contains('=')
                 ? neuralArg.Split('=', 2)[1]
-                : Path.Combine("ml", "models", "btc_large_voca.onnx"));
+                : Path.Combine("ml", "models", "btc_large_voca.onnx"), keyPrior);
         else
             Analyze(target);
         return 0;
@@ -137,11 +141,12 @@ switch (args[0])
         return 1;
 }
 
-static void AnalyzeNeural(string path, string modelPath)
+static void AnalyzeNeural(string path, string modelPath, double keyPrior = 0.5)
 {
-    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}) {Path.GetFileName(path)}...");
+    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}, keyprior {keyPrior}) {Path.GetFileName(path)}...");
     var (samples, _) = AudioLoader.LoadMono(path, Strunika.Neural.CqtExtractor.SampleRate);
-    using var recognizer = new Strunika.Neural.NeuralChordRecognizer(modelPath);
+    using var recognizer = new Strunika.Neural.NeuralChordRecognizer(modelPath)
+        { KeyPriorStrength = keyPrior };
     var timeline = recognizer.Recognize(samples);
     Console.WriteLine($"key: {recognizer.DetectedKey ?? "не визначено"}");
     foreach (var segment in timeline)
