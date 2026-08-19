@@ -25,9 +25,6 @@
     <Content Include="..\..\ml\models\btc_large_voca.json" Link="models\btc_large_voca.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\ml\models\btc_guitar2.onnx" Link="models\btc_guitar2.onnx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\ml\models\btc_guitar2.json" Link="models\btc_guitar2.json" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Billboard mix model: wildcard so the build works before it exists. -->
-    <Content Include="..\..\ml\models\btc_mix.onn*" Link="models\btc_mix.onnx" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\ml\models\btc_mix.jso*" Link="models\btc_mix.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

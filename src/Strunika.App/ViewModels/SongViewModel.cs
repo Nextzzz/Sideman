@@ -34,8 +34,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _main;
     private readonly string? _baseModelPath;   // original generalist (kept for A/B)
-    private readonly string? _guitarModelPath; // GuitarSet fine-tune (mic/solo)
-    private readonly string? _mixModelPath;    // Billboard fine-tune (full mixes)
+    private readonly string? _guitarModelPath; // guitar2: mic-robust fine-tune (mic/solo)
     private readonly Dictionary<string, NeuralChordRecognizer> _recognizers = new();
     private bool _recording;
 
@@ -60,7 +59,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
     /// <summary>Which model analyzes. Авто routes by domain; the explicit
     /// options exist for A/B comparison of the same song across models.</summary>
-    public string[] EngineModes { get; } = { "Авто", "Гітара", "Мікс", "Базова" };
+    public string[] EngineModes { get; } = { "Авто", "Гітара", "Базова" };
 
     [ObservableProperty]
     private string engineMode = "Авто";
@@ -90,12 +89,11 @@ public partial class SongViewModel : ObservableObject, IDisposable
     public ObservableCollection<SegmentRowVm> Segments { get; } = new();
 
     public SongViewModel(
-        MainViewModel main, string? baseModelPath, string? guitarModelPath, string? mixModelPath)
+        MainViewModel main, string? baseModelPath, string? guitarModelPath)
     {
         _main = main;
         _baseModelPath = baseModelPath;
         _guitarModelPath = guitarModelPath;
-        _mixModelPath = mixModelPath;
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         timer.Tick += (_, _) => SyncPlayback();
@@ -294,25 +292,19 @@ public partial class SongViewModel : ObservableObject, IDisposable
         double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
 
         // Model choice: Авто routes mic takes and bass-free (guitar-domain)
-        // files to guitar2, everything else to mix (base if untrained).
-        // guitar2 made file routing safe again: on HookTheory-178 it ties
-        // base/mix (70.4 vs 70.8/70.4) while keeping +8pp on solo guitar —
-        // a wrong route now costs ~nothing, a right one wins big. Explicit
-        // modes exist for A/B — the base generalist is kept forever.
+        // files to guitar2, everything else to base. Mix was retired after
+        // HookTheory-591 (base 72.4 vs mix 71.6 — no edge worth a third
+        // model); guitar2 ties base on mixes while keeping +8pp on solo
+        // guitar, so a wrong route costs ~nothing, a right one wins big.
         bool autoGuitar = micRecording || AudioDomainClassifier.IsGuitarLike(
             samples44, MicrophoneCapture.SampleRate);
         (string? modelPath, string engineName) = EngineMode switch
         {
             "Гітара" => (_guitarModelPath, "нейро · гітарна"),
             "Базова" => (_baseModelPath, "нейро · базова"),
-            "Мікс" => _mixModelPath != null
-                ? (_mixModelPath, "нейро · мікс (Billboard)")
-                : (_baseModelPath, "нейро · базова (мікс ще не натреновано)"),
             _ => autoGuitar
                 ? (_guitarModelPath ?? _baseModelPath, "нейро · гітарна (авто)")
-                : _mixModelPath != null
-                    ? (_mixModelPath, "нейро · мікс (авто)")
-                    : (_baseModelPath, "нейро · базова (авто)"),
+                : (_baseModelPath, "нейро · базова (авто)"),
         };
         if (EngineMode == "Авто" && !micRecording)
             FileLog.Info($"Auto domain probe: lowBand=" +

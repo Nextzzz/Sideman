@@ -34,18 +34,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         RefreshDevices();
 
-        // Model roster: base generalist (always kept for A/B comparison),
-        // GuitarSet fine-tune for live/mic, Billboard fine-tune for mixes
-        // (optional until trained).
+        // Model roster: base generalist (always kept for A/B comparison)
+        // and the mic-robust guitar fine-tune for live/mic/solo files.
         string? baseModel = FindModel("btc_large_voca.onnx");
         // guitar2 = consumer-mic-robust re-train; v1 kept only as a disk fallback.
+        // Mix model retired after HookTheory-591 (no edge over base).
         string? guitarModel = FindModel("btc_guitar2.onnx")
                               ?? FindModel("btc_guitar.onnx") ?? baseModel;
-        string? mixModel = FindModel("btc_mix.onnx");
 
         Tuner = new TunerViewModel(Capture);
         Live = new LiveChordsViewModel(Capture, guitarModel);
-        Song = new SongViewModel(this, baseModel, guitarModel, mixModel);
+        Song = new SongViewModel(this, baseModel, guitarModel);
         // Jam mode is shelved: the engine lives on in Services/JamEngine
         // until the scheduling bug is beaten on a simulation bench.
     }
