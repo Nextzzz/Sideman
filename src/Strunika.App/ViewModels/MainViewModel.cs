@@ -38,7 +38,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // GuitarSet fine-tune for live/mic, Billboard fine-tune for mixes
         // (optional until trained).
         string? baseModel = FindModel("btc_large_voca.onnx");
-        string? guitarModel = FindModel("btc_guitar.onnx") ?? baseModel;
+        // guitar2 = consumer-mic-robust re-train; v1 kept only as a disk fallback.
+        string? guitarModel = FindModel("btc_guitar2.onnx")
+                              ?? FindModel("btc_guitar.onnx") ?? baseModel;
         string? mixModel = FindModel("btc_mix.onnx");
 
         Tuner = new TunerViewModel(Capture);
