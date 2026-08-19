@@ -46,10 +46,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Tuner = new TunerViewModel(Capture);
         Live = new LiveChordsViewModel(Capture, guitarModel);
         Song = new SongViewModel(this, baseModel, guitarModel, mixModel);
-        Jam = new JamViewModel(this);
+        // Jam mode is shelved: the engine lives on in Services/JamEngine
+        // until the scheduling bug is beaten on a simulation bench.
     }
-
-    public JamViewModel Jam { get; }
 
     private static string? FindModel(string fileName)
     {
@@ -83,7 +82,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        Jam.Dispose();
         Live.Dispose();
         Song.Dispose();
         Capture.Dispose();

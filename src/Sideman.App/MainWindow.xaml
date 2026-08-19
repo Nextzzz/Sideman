@@ -102,52 +102,6 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Джем 🥁">
-                <Grid>
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="460">
-                        <TextBlock Text="{Binding Jam.ChordText}" FontSize="120" FontWeight="Bold"
-                                   Foreground="#FFB86C" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding Jam.BpmText}" FontSize="30"
-                                   Opacity="0.85" HorizontalAlignment="Center" Margin="0,4,0,2"/>
-                        <TextBlock Text="{Binding Jam.Status}" FontSize="15" Opacity="0.7"
-                                   HorizontalAlignment="Center" Margin="0,0,0,18"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <Button Content="{Binding Jam.JamButtonText}"
-                                    Command="{Binding Jam.ToggleJamCommand}"
-                                    FontSize="20" Padding="26,10"/>
-                            <CheckBox Content="Метроном" IsChecked="{Binding Jam.MetronomeOn}"
-                                      VerticalAlignment="Center" Margin="18,0,0,0"
-                                      Foreground="#EAEAEA"/>
-                        </StackPanel>
-
-                        <Grid Margin="0,26,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="52"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/> <RowDefinition/> <RowDefinition/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Барабани" Grid.Row="0" VerticalAlignment="Center" Opacity="0.75"/>
-                            <Slider Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="1"
-                                    Value="{Binding Jam.DrumVolume}" VerticalAlignment="Center"/>
-                            <TextBlock Text="Бас" Grid.Row="1" VerticalAlignment="Center" Opacity="0.75"/>
-                            <Slider Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="1"
-                                    Value="{Binding Jam.BassVolume}" VerticalAlignment="Center"/>
-                            <TextBlock Text="Затримка" Grid.Row="2" VerticalAlignment="Center" Opacity="0.75"/>
-                            <Slider Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="300"
-                                    Value="{Binding Jam.LatencyMs}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Row="2" Grid.Column="2"
-                                       Text="{Binding Jam.LatencyMs, StringFormat={}{0:F0}мс}"
-                                       VerticalAlignment="Center" Opacity="0.6" Margin="8,0,0,0"/>
-                        </Grid>
-                        <TextBlock Text="Обов'язково грай у навушниках — інакше апка чутиме сама себе"
-                                   FontSize="11" Opacity="0.45" HorizontalAlignment="Center" Margin="0,14,0,0"/>
-                    </StackPanel>
-                </Grid>
-            </TabItem>
-
             <TabItem Header="Пісня">
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
