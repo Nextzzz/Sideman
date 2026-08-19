@@ -20,6 +20,27 @@ public class SlidingDetectorTests
     }
 
     [Test]
+    public void Recognize_CampfireProgressionWithKeyPrior_StaysCorrect()
+    {
+        // Arrange: G-C-D-Em are all diatonic to G major — the key prior
+        // must reinforce, never distort, an already-correct timeline.
+        var (samples, _) = AudioLoader.LoadMono(
+            Path.Combine(RepoRoot, "output", "demo_progression.wav"), 22050);
+        using var recognizer = new NeuralChordRecognizer(
+            Path.Combine(RepoRoot, "ml", "models", "btc_large_voca.onnx"));
+
+        // Act
+        var labels = recognizer.Recognize(samples)
+            .Where(s => s.Label is not ("N" or "X"))
+            .Select(s => ChordLabels.Pretty(s.Label))
+            .ToArray();
+
+        // Assert
+        Assert.That(labels, Is.EqualTo(new[] { "G", "C", "D", "Em" }));
+        Assert.That(recognizer.DetectedKey, Is.EqualTo("G"));
+    }
+
+    [Test]
     public void Decimator_Sine440At44100_StaysAt440After2xDecimation()
     {
         // Arrange: a pure A4 at the capture rate.

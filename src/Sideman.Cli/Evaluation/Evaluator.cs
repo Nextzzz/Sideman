@@ -29,6 +29,9 @@ public sealed class Evaluator
     /// neural recognizer instead of the template engine.</summary>
     public string? NeuralModel { get; init; }
 
+    /// <summary>Diatonic key-prior strength for the neural recognizer.</summary>
+    public double NeuralKeyPrior { get; init; } = 0.5;
+
     /// <summary>When set, only files starting with one of these prefixes
     /// are evaluated (e.g. ["04_","05_"] = held-out players).</summary>
     public string[]? FilePrefixes { get; init; }
@@ -50,7 +53,8 @@ public sealed class Evaluator
 
         using var neural = NeuralModel == null
             ? null
-            : new Sideman.Neural.NeuralChordRecognizer(NeuralModel);
+            : new Sideman.Neural.NeuralChordRecognizer(NeuralModel)
+              { KeyPriorStrength = NeuralKeyPrior };
 
         Parallel.ForEach(jamsFiles, jamsPath =>
         {

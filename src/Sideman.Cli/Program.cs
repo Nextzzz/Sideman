@@ -94,6 +94,7 @@ switch (args[0])
             Limit = limit,
             Options = options,
             NeuralModel = neuralModel,
+            NeuralKeyPrior = Param("keyprior", 0.5),
             FilePrefixes = prefixes,
         };
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -141,7 +142,9 @@ static void AnalyzeNeural(string path, string modelPath)
     Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}) {Path.GetFileName(path)}...");
     var (samples, _) = AudioLoader.LoadMono(path, Sideman.Neural.CqtExtractor.SampleRate);
     using var recognizer = new Sideman.Neural.NeuralChordRecognizer(modelPath);
-    foreach (var segment in recognizer.Recognize(samples))
+    var timeline = recognizer.Recognize(samples);
+    Console.WriteLine($"key: {recognizer.DetectedKey ?? "не визначено"}");
+    foreach (var segment in timeline)
         Console.WriteLine($"  {Format(segment.Start),7} - {Format(segment.End),-7} " +
                           Sideman.Neural.ChordLabels.Pretty(segment.Label));
 

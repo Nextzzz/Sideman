@@ -321,6 +321,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
         {
             if (!_recognizers.TryGetValue(modelPath, out var neural))
                 _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath);
+            // (key prior and Viterbi smoothing are on by default inside)
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
@@ -332,8 +333,18 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
             var onsets = new OnsetDetector();
             var novelty = onsets.NoveltyCurve(samples44, MicrophoneCapture.SampleRate);
-            double bpm = new TempoEstimator().Estimate(
-                novelty, onsets.FrameRate(MicrophoneCapture.SampleRate));
+            double frameRate = onsets.FrameRate(MicrophoneCapture.SampleRate);
+            double bpm = new TempoEstimator().Estimate(novelty, frameRate);
+
+            // Display correctness: chord changes land ON beats.
+            var beatTimes = new BeatTracker().Track(novelty, frameRate, bpm)
+                .Select(f => (f * (double)onsets.Hop + onsets.NFft / 2.0)
+                             / MicrophoneCapture.SampleRate)
+                .ToArray();
+            segments = ChordTimeline.SnapToBeats(segments, beatTimes);
+
+            if (neural.DetectedKey != null)
+                engineName += $" · тональність {neural.DetectedKey}";
             return new AnalysisResult(segments, bpm, duration, engineName);
         }
 

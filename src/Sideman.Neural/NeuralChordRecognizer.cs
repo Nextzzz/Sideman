@@ -39,18 +39,45 @@ public sealed class NeuralChordRecognizer : IDisposable
     /// turns those into spurious half-second segments.</summary>
     public double ViterbiSelfTransition { get; init; } = 0.9;
 
+    /// <summary>Log-space bonus for chords diatonic to the detected key
+    /// in a second decoding pass. Targets parallel major/minor confusions:
+    /// in A minor, an A major triad is a stranger while Am is family.
+    /// 0 disables the second pass.</summary>
+    public double KeyPriorStrength { get; init; } = 0.5;
+
+    /// <summary>Detected key of the last recognized recording ("Am", "C"),
+    /// or null when detection was not confident.</summary>
+    public string? DetectedKey { get; private set; }
+
     /// <summary>Per-frame chord labels (~92.6 ms per frame).
     /// <paramref name="smooth"/> false = raw argmax (golden-file parity
     /// with the Python reference); true = Viterbi-smoothed (product).</summary>
     public string[] PredictFrames(float[] samples22050, bool smooth = true)
     {
         var logProbs = PredictLogProbs(samples22050);
+        DetectedKey = null;
         if (logProbs.Length == 0)
             return Array.Empty<string>();
 
-        int[] path = smooth && ViterbiSelfTransition > 0
-            ? ViterbiPath(logProbs)
-            : logProbs.Select(ArgMax).ToArray();
+        if (!smooth || ViterbiSelfTransition <= 0)
+            return logProbs.Select(ArgMax).Select(i => _labels[i]).ToArray();
+
+        var path = ViterbiPath(logProbs);
+
+        // Second pass with a diatonic prior when the key is clear.
+        if (KeyPriorStrength > 0)
+        {
+            var key = KeyPrior.Estimate(path, _labels);
+            if (key != null)
+            {
+                DetectedKey = key.Value.Name;
+                var bonus = KeyPrior.StateBonuses(key.Value, _labels, KeyPriorStrength);
+                for (int t = 0; t < logProbs.Length; t++)
+                    for (int c = 0; c < bonus.Length; c++)
+                        logProbs[t][c] += bonus[c];
+                path = ViterbiPath(logProbs);
+            }
+        }
         return path.Select(i => _labels[i]).ToArray();
     }
 
