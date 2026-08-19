@@ -9,7 +9,8 @@ namespace Sideman.Core.Realtime;
 public sealed class TempoPhaseFollower
 {
     private readonly List<double> _onsets = new();
-    private double _anchor;   // a reference beat time on the grid
+    private double _anchor;   // a grid beat time, kept NEAR the present
+    private long _anchorIndex; // global beat number of the anchor
     private double _period;
     private double _lastAcceptedOnset;
 
@@ -41,9 +42,16 @@ public sealed class TempoPhaseFollower
             return;
         }
 
-        // Snap the onset to the nearest grid position.
+        // Re-anchor to the grid beat nearest this onset FIRST: corrections
+        // must rotate the grid around the present, not around the ancient
+        // lock point — otherwise a period tweak swings the phase at "now"
+        // like a long lever and the loop oscillates.
         double beats = (time - _anchor) / _period;
-        double error = (beats - Math.Round(beats)) * _period;
+        long nearest = (long)Math.Round(beats);
+        _anchor += nearest * _period;
+        _anchorIndex += nearest;
+
+        double error = time - _anchor;
         if (Math.Abs(error) <= 0.22 * _period)
         {
             _anchor += PhaseGain * error;
@@ -118,6 +126,7 @@ public sealed class TempoPhaseFollower
 
         _period = period;
         _anchor = _onsets[^1];
+        _anchorIndex = 0;
         _lastAcceptedOnset = now;
         Locked = true;
         LockAcquired?.Invoke();
@@ -136,5 +145,5 @@ public sealed class TempoPhaseFollower
     /// <summary>Global index of the beat at the given grid time (for
     /// pattern positions: kick/snare alternation).</summary>
     public long BeatIndex(double beatTime) =>
-        (long)Math.Round((beatTime - _anchor) / _period);
+        _anchorIndex + (long)Math.Round((beatTime - _anchor) / _period);
 }
