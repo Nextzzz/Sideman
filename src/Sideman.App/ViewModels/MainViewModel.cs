@@ -46,7 +46,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         Tuner = new TunerViewModel(Capture);
         Live = new LiveChordsViewModel(Capture, guitarModel);
         Song = new SongViewModel(this, baseModel, guitarModel, mixModel);
+        Jam = new JamViewModel(this);
     }
+
+    public JamViewModel Jam { get; }
 
     private static string? FindModel(string fileName)
     {
@@ -80,6 +83,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        Jam.Dispose();
         Live.Dispose();
         Song.Dispose();
         Capture.Dispose();
