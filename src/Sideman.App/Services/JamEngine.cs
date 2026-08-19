@@ -90,10 +90,7 @@ public sealed class JamEngine : IDisposable
         _output.Init(_scheduler);
         _output.Play();
         lock (_planLock)
-        {
             _lastPlannedIndex = long.MinValue;
-            _ownHits.Clear();
-        }
         _planner.Start();
         Running = true;
         FileLog.Info("Jam engine started");
