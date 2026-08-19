@@ -33,10 +33,10 @@ public partial class SegmentRowVm : ObservableObject
 public partial class SongViewModel : ObservableObject, IDisposable
 {
     private readonly MainViewModel _main;
-    private readonly string? _mixModelPath;    // files / YouTube (full mixes)
-    private readonly string? _guitarModelPath; // mic recordings (solo guitar)
-    private NeuralChordRecognizer? _mixNeural;
-    private NeuralChordRecognizer? _guitarNeural;
+    private readonly string? _baseModelPath;   // original generalist (kept for A/B)
+    private readonly string? _guitarModelPath; // GuitarSet fine-tune (mic/solo)
+    private readonly string? _mixModelPath;    // Billboard fine-tune (full mixes)
+    private readonly Dictionary<string, NeuralChordRecognizer> _recognizers = new();
     private bool _recording;
 
     private readonly AudioPlayer _player = new();
@@ -58,9 +58,9 @@ public partial class SongViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string recordButtonText = "● Записати";
 
-    /// <summary>Which model analyzes: Авто = mic takes → guitar model,
-    /// files/YouTube → generalist; or force either one.</summary>
-    public string[] EngineModes { get; } = { "Авто", "Гітара", "Мікс" };
+    /// <summary>Which model analyzes. Авто routes by domain; the explicit
+    /// options exist for A/B comparison of the same song across models.</summary>
+    public string[] EngineModes { get; } = { "Авто", "Гітара", "Мікс", "Базова" };
 
     [ObservableProperty]
     private string engineMode = "Авто";
@@ -89,11 +89,13 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<SegmentRowVm> Segments { get; } = new();
 
-    public SongViewModel(MainViewModel main, string? mixModelPath, string? guitarModelPath)
+    public SongViewModel(
+        MainViewModel main, string? baseModelPath, string? guitarModelPath, string? mixModelPath)
     {
         _main = main;
-        _mixModelPath = mixModelPath;
+        _baseModelPath = baseModelPath;
         _guitarModelPath = guitarModelPath;
+        _mixModelPath = mixModelPath;
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         timer.Tick += (_, _) => SyncPlayback();
@@ -291,31 +293,34 @@ public partial class SongViewModel : ObservableObject, IDisposable
     {
         double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
 
-        // Domain routing: guitar-fine-tuned model for mic takes,
-        // the original generalist for files and YouTube mixes —
-        // unless the user forces a model explicitly.
-        bool useGuitar = EngineMode switch
+        // Model choice: Авто routes by domain (mic takes and bass-free
+        // files -> guitar model; everything else -> mix model when trained,
+        // base otherwise). Explicit modes exist for A/B comparison — the
+        // base generalist is deliberately kept available forever.
+        bool autoGuitar = micRecording || AudioDomainClassifier.IsGuitarLike(
+            samples44, MicrophoneCapture.SampleRate);
+        (string? modelPath, string engineName) = EngineMode switch
         {
-            "Гітара" => true,
-            "Мікс" => false,
-            // Auto: mic takes are guitar by definition; files are probed —
-            // no sub-70Hz energy means no kick/bass, i.e. solo guitar.
-            _ => micRecording || AudioDomainClassifier.IsGuitarLike(
-                     samples44, MicrophoneCapture.SampleRate),
+            "Гітара" => (_guitarModelPath, "нейро · гітарна"),
+            "Базова" => (_baseModelPath, "нейро · базова"),
+            "Мікс" => _mixModelPath != null
+                ? (_mixModelPath, "нейро · мікс (Billboard)")
+                : (_baseModelPath, "нейро · базова (мікс ще не натреновано)"),
+            _ => autoGuitar
+                ? (_guitarModelPath ?? _baseModelPath, "нейро · гітарна (авто)")
+                : _mixModelPath != null
+                    ? (_mixModelPath, "нейро · мікс (авто)")
+                    : (_baseModelPath, "нейро · базова (авто)"),
         };
         if (EngineMode == "Авто" && !micRecording)
             FileLog.Info($"Auto domain probe: lowBand=" +
                 $"{AudioDomainClassifier.LowBandRatio(samples44, MicrophoneCapture.SampleRate):F4}" +
-                $" -> {(useGuitar ? "guitar" : "mix")} model");
-        string? modelPath = useGuitar
-            ? _guitarModelPath ?? _mixModelPath
-            : _mixModelPath ?? _guitarModelPath;
+                $" -> {engineName}");
 
         if (modelPath != null)
         {
-            var neural = useGuitar && _guitarModelPath != null
-                ? _guitarNeural ??= new NeuralChordRecognizer(modelPath)
-                : _mixNeural ??= new NeuralChordRecognizer(modelPath);
+            if (!_recognizers.TryGetValue(modelPath, out var neural))
+                _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath);
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)
@@ -329,9 +334,6 @@ public partial class SongViewModel : ObservableObject, IDisposable
             var novelty = onsets.NoveltyCurve(samples44, MicrophoneCapture.SampleRate);
             double bpm = new TempoEstimator().Estimate(
                 novelty, onsets.FrameRate(MicrophoneCapture.SampleRate));
-            string engineName = useGuitar && _guitarModelPath != null
-                ? "нейро · гітарна модель"
-                : "нейро · базова модель";
             return new AnalysisResult(segments, bpm, duration, engineName);
         }
 

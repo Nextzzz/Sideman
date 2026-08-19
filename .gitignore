@@ -11,3 +11,8 @@ datasets/
 ml/vendor/
 ml/.venv/
 ml/cache/
+ml/*.zip
+ml/*.log
+ml/*.err
+ml/cache_billboard/
+ml/bundle_staging/

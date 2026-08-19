@@ -36,15 +36,16 @@ public partial class MainViewModel : ObservableObject, IDisposable
             .ToList();
         SelectedDevice = Devices.FirstOrDefault();
 
-        // Two domains, two models: the GuitarSet-fine-tuned one hears solo
-        // guitar better (live, mic recordings); the original generalist is
-        // safer on full mixes (files, YouTube).
-        string? mixModel = FindModel("btc_large_voca.onnx");
-        string? guitarModel = FindModel("btc_guitar.onnx") ?? mixModel;
+        // Model roster: base generalist (always kept for A/B comparison),
+        // GuitarSet fine-tune for live/mic, Billboard fine-tune for mixes
+        // (optional until trained).
+        string? baseModel = FindModel("btc_large_voca.onnx");
+        string? guitarModel = FindModel("btc_guitar.onnx") ?? baseModel;
+        string? mixModel = FindModel("btc_mix.onnx");
 
         Tuner = new TunerViewModel(Capture);
         Live = new LiveChordsViewModel(Capture, guitarModel);
-        Song = new SongViewModel(this, mixModel, guitarModel);
+        Song = new SongViewModel(this, baseModel, guitarModel, mixModel);
     }
 
     private static string? FindModel(string fileName)
