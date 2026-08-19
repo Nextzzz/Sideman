@@ -1,5 +1,5 @@
 """GuitarSet evaluation of the exported BTC ONNX models — the same
-frame-level majmin WCSR protocol as the C# harness (Sideman.Cli eval),
+frame-level majmin WCSR protocol as the C# harness (Strunika.Cli eval),
 so numbers are directly comparable with the template engine.
 
 Run:

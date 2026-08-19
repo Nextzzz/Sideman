@@ -18,7 +18,7 @@ import librosa
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Sideman", "tools")
+TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Strunika", "tools")
 FFMPEG = os.path.join(TOOLS, "ffmpeg.exe")
 
 

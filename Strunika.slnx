@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Strunika.App/Strunika.App.csproj" />
+    <Project Path="src/Strunika.Cli/Strunika.Cli.csproj" />
+    <Project Path="src/Strunika.Core/Strunika.Core.csproj" />
+    <Project Path="src/Strunika.Media/Strunika.Media.csproj" />
+    <Project Path="src/Strunika.Neural/Strunika.Neural.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Strunika.Core.Tests/Strunika.Core.Tests.csproj" />
+    <Project Path="tests/Strunika.Neural.Tests/Strunika.Neural.Tests.csproj" />
+  </Folder>
+</Solution>

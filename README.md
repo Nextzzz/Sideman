@@ -1,6 +1,6 @@
-# Sideman
+# Strunika
 
-> *sideman (n.) — a professional musician hired to accompany a soloist or bandleader.*
+> *Strunika — from "струна" (struna), the Ukrainian word for a string of a musical instrument.*
 
 Chord and rhythm analysis for guitarists: a tuner, chord recognition for any
 audio (file / recording / YouTube link), and **live chord detection while you
@@ -20,10 +20,10 @@ playing in real time.
 ## Architecture
 
 ```
-Sideman.Core   pure C#, zero dependencies — DSP + analysis (portable to mobile)
-Sideman.Media  desktop I/O: NAudio decode/capture, YouTube audio download
-Sideman.App    WPF desktop app (CommunityToolkit.Mvvm)
-Sideman.Cli    command-line analysis & calibration harness
+Strunika.Core   pure C#, zero dependencies — DSP + analysis (portable to mobile)
+Strunika.Media  desktop I/O: NAudio decode/capture, YouTube audio download
+Strunika.App    WPF desktop app (CommunityToolkit.Mvvm)
+Strunika.Cli    command-line analysis & calibration harness
 tests/         NUnit; synthetic Karplus-Strong fixtures with known ground truth
 ```
 
@@ -35,11 +35,11 @@ dynamic-programming beat tracking (Ellis 2007).
 ## Build & run
 
 ```
-dotnet test tests/Sideman.Core.Tests          # 30 tests
-dotnet run --project src/Sideman.Cli -- demo  # synthesize + analyze a progression
-dotnet run --project src/Sideman.Cli -- analyze path/to/song.mp3
+dotnet test tests/Strunika.Core.Tests          # 30 tests
+dotnet run --project src/Strunika.Cli -- demo  # synthesize + analyze a progression
+dotnet run --project src/Strunika.Cli -- analyze path/to/song.mp3
 # desktop app:
-dotnet run --project src/Sideman.App
+dotnet run --project src/Strunika.App
 ```
 
 ## Status

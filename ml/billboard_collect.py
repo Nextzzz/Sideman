@@ -18,7 +18,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 BILLBOARD = os.path.normpath(os.path.join(HERE, "..", "datasets", "billboard"))
 AUDIO_DIR = os.path.join(BILLBOARD, "audio")
-TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Sideman", "tools")
+TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Strunika", "tools")
 YTDLP = os.path.join(TOOLS, "yt-dlp.exe")
 BGUTIL = os.path.join(TOOLS, "bgutil", "server", "build", "main.js")
 

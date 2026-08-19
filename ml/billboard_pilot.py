@@ -12,7 +12,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BILLBOARD = os.path.normpath(os.path.join(HERE, "..", "datasets", "billboard"))
-YTDLP = os.path.join(os.environ["LOCALAPPDATA"], "Sideman", "tools", "yt-dlp.exe")
+YTDLP = os.path.join(os.environ["LOCALAPPDATA"], "Strunika", "tools", "yt-dlp.exe")
 
 
 def lab_duration(entry_id):

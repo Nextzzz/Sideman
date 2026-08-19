@@ -16,3 +16,5 @@ ml/*.log
 ml/*.err
 ml/cache_billboard/
 ml/bundle_staging/
+Backup/
+UpgradeLog*.htm
