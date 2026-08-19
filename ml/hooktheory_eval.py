@@ -89,8 +89,9 @@ def main(limit):
                 t += STEP
             scored[name] += song_scored
             correct[name] += song_correct
-            per_song[name].append((song_correct / max(song_scored, 1),
-                                   f"{row['artist']}/{row['song']}"))
+            if song_scored > 0:
+                per_song[name].append((song_correct / song_scored,
+                                       f"{row['artist']}/{row['song']}"))
         done += 1
         if done % 10 == 0:
             print(f"{done} songs: " + "  ".join(
