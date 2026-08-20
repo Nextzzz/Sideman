@@ -120,6 +120,10 @@
                                   ItemsSource="{Binding Song.EngineModes}"
                                   SelectedItem="{Binding Song.EngineMode}"
                                   ToolTip="Модель аналізу: Авто — записи через гітарну, файли/YouTube через базову. Для файлів із соло-гітарою обери «Гітара»."/>
+                        <CheckBox DockPanel.Dock="Right" Content="Прості акорди" Margin="8,0,0,0"
+                                  VerticalAlignment="Center" Foreground="#EAEAEA"
+                                  IsChecked="{Binding Song.SimpleChords}"
+                                  ToolTip="Показувати тризвуки замість септакордів і sus (Am7 → Am, Cmaj7 → C). Лише відображення — аналіз не змінюється."/>
                         <Button DockPanel.Dock="Right" Content="Огляд…"
                                 Command="{Binding Song.BrowseCommand}" Padding="14,6" Margin="8,0,0,0"/>
                         <TextBox Text="{Binding Song.Source, UpdateSourceTrigger=PropertyChanged}"

@@ -64,6 +64,19 @@ public partial class SongViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string engineMode = "Авто";
 
+    /// <summary>Beginner view: extensions/suspensions shown as triads and
+    /// neighbouring equal chords merged. Display-only, off by default.</summary>
+    [ObservableProperty]
+    private bool simpleChords;
+
+    private AnalysisResult? _lastResult;
+
+    partial void OnSimpleChordsChanged(bool value)
+    {
+        if (_lastResult != null)
+            RenderSegments(_lastResult);
+    }
+
     [ObservableProperty]
     private bool playerAvailable;
 
@@ -381,8 +394,30 @@ public partial class SongViewModel : ObservableObject, IDisposable
         PositionSeconds = 0;
         TimeText = $"0:00 / {FormatClock(result.Duration)}";
 
+        _lastResult = result;
+        RenderSegments(result);
+        Summary = $"{Path.GetFileName(audioPath)}   •   {result.Duration:F0} с   •   " +
+                  $"{result.Bpm:F0} BPM   •   {result.Engine}";
+        Status = "Готово.";
+    }
+
+    /// <summary>Timeline rows from a result, optionally simplified; equal
+    /// neighbours merge so "Am | Am7" becomes one "Am" row.</summary>
+    private void RenderSegments(AnalysisResult result)
+    {
+        SelectedRow = null;
+        NowChord = "";
         Segments.Clear();
+        var rows = new List<(double Start, double End, string Chord)>();
         foreach (var (start, end, chord) in result.Segments)
+        {
+            string shown = SimpleChords ? ChordLabels.Simplify(chord) : chord;
+            if (rows.Count > 0 && rows[^1].Chord == shown)
+                rows[^1] = (rows[^1].Start, end, shown);
+            else
+                rows.Add((start, end, shown));
+        }
+        foreach (var (start, end, chord) in rows)
         {
             Segments.Add(new SegmentRowVm
             {
@@ -393,9 +428,6 @@ public partial class SongViewModel : ObservableObject, IDisposable
                 EndSec = end,
             });
         }
-        Summary = $"{Path.GetFileName(audioPath)}   •   {result.Duration:F0} с   •   " +
-                  $"{result.Bpm:F0} BPM   •   {result.Engine}";
-        Status = "Готово.";
     }
 
     private static string FormatTime(double seconds) =>
