@@ -11,6 +11,7 @@ the longest one), labels in the full 170-class vocabulary.
 
 Output:
     bundle_hook/data/hook_train.npz    windows [N,108,144] f32 + labels + mask
+    bundle_hook/data/hook_val.npz      song-level held-out slice for early stop
 
 Run:
     .venv/Scripts/python hooktheory_train_prep.py
@@ -112,9 +113,11 @@ def main():
         key = (entry["hooktheory"]["artist"], entry["hooktheory"]["song"])
         by_song.setdefault(key, []).append(entry)
 
-    xs, ys, ms = [], [], []
+    packs = {"train": ([], [], []), "val": ([], [], [])}
     used_songs = used_segments = 0
-    for row in train_rows:
+    for n_row, row in enumerate(train_rows):
+        # Every 10th training song goes to the early-stop validation slice.
+        xs, ys, ms = packs["val" if n_row % 10 == 0 else "train"]
         audio_path = os.path.join(ROOT, "audio", row["id"] + ".m4a")
         if not os.path.exists(audio_path):
             continue
@@ -147,14 +150,14 @@ def main():
             song_added = True
         used_songs += song_added
         if used_songs % 50 == 0 and song_added:
-            print(f"{used_songs} songs, {used_segments} segments, "
-                  f"{len(xs)} windows", flush=True)
+            print(f"{used_songs} songs, {used_segments} segments", flush=True)
 
     os.makedirs(OUT, exist_ok=True)
-    np.savez_compressed(os.path.join(OUT, "hook_train.npz"),
-                        x=np.stack(xs), y=np.stack(ys), m=np.stack(ms))
-    print(f"DONE: {used_songs} songs, {used_segments} segments, "
-          f"{len(xs)} windows -> hook_train.npz", flush=True)
+    for name, (xs, ys, ms) in packs.items():
+        np.savez_compressed(os.path.join(OUT, f"hook_{name}.npz"),
+                            x=np.stack(xs), y=np.stack(ys), m=np.stack(ms))
+        print(f"hook_{name}.npz: {len(xs)} windows", flush=True)
+    print(f"DONE: {used_songs} songs, {used_segments} segments", flush=True)
 
 
 if __name__ == "__main__":
