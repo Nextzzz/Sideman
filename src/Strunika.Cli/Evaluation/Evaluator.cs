@@ -32,6 +32,10 @@ public sealed class Evaluator
     /// <summary>Diatonic key-prior strength for the neural recognizer.</summary>
     public double NeuralKeyPrior { get; init; } = 0.5;
 
+    /// <summary>Inference-time passes: half-window overlap and ±N semitone TTA.</summary>
+    public bool NeuralOverlap { get; init; }
+    public int NeuralTta { get; init; }
+
     /// <summary>When set, only files starting with one of these prefixes
     /// are evaluated (e.g. ["04_","05_"] = held-out players).</summary>
     public string[]? FilePrefixes { get; init; }
@@ -54,7 +58,11 @@ public sealed class Evaluator
         using var neural = NeuralModel == null
             ? null
             : new Strunika.Neural.NeuralChordRecognizer(NeuralModel)
-              { KeyPriorStrength = NeuralKeyPrior };
+              {
+                  KeyPriorStrength = NeuralKeyPrior,
+                  OverlapWindows = NeuralOverlap,
+                  PitchTtaSemitones = NeuralTta,
+              };
 
         Parallel.ForEach(jamsFiles, jamsPath =>
         {

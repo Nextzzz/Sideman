@@ -81,52 +81,124 @@ public sealed class NeuralChordRecognizer : IDisposable
         return path.Select(i => _labels[i]).ToArray();
     }
 
+    /// <summary>Second window pass offset by half a window, averaged with
+    /// the first: frames near a window edge get two-sided context. One
+    /// extra inference pass (~0.25 s per 3-minute song).</summary>
+    public bool OverlapWindows { get; init; }
+
+    /// <summary>Pitch-shift test-time augmentation: extra passes on the
+    /// CQT rolled ±1..N semitones, predictions rolled back to the true
+    /// root and averaged. Two passes per semitone. 0 disables.</summary>
+    public int PitchTtaSemitones { get; init; }
+
+    private const float LogFloor = -13.8155106f; // log(1e-6): CQT silence level
+
+    /// <summary>Per-frame log-probabilities averaged over all enabled
+    /// passes (probability space), log-softmax for Viterbi's reward scale.</summary>
     private float[][] PredictLogProbs(float[] samples22050)
     {
         var features = _cqt.Extract(samples22050);
         int frames = features.Length;
-        var result = new float[frames][];
+        if (frames == 0)
+            return Array.Empty<float[]>();
+        int states = _labels.Length;
 
-        int windows = (frames + _timestep - 1) / _timestep;
-        for (int w = 0; w < windows; w++)
-        {
-            var tensor = new DenseTensor<float>(new[] { 1, _timestep, CqtExtractor.Bins });
-            for (int t = 0; t < _timestep; t++)
+        // Label layout root*qualities+quality, then X, N — needed to roll
+        // shifted predictions back. Models without it get no TTA.
+        int qualities = (states - 2) % 12 == 0 ? (states - 2) / 12 : 0;
+
+        var passes = new List<(int Offset, int Shift)> { (0, 0) };
+        if (OverlapWindows)
+            passes.Add((_timestep / 2, 0));
+        if (qualities > 0)
+            for (int k = 1; k <= PitchTtaSemitones; k++)
             {
-                int src = w * _timestep + t;
-                if (src >= frames)
-                    break; // zero padding for the tail window
-                for (int b = 0; b < CqtExtractor.Bins; b++)
-                    tensor[0, t, b] = features[src][b];
+                passes.Add((0, k));
+                passes.Add((0, -k));
             }
 
-            using var output = _session.Run(new[]
-            {
-                NamedOnnxValue.CreateFromTensor("features", tensor),
-            });
-            var logits = (DenseTensor<float>)output[0].Value;
+        var sum = new double[frames][];
+        var cover = new int[frames];
+        for (int t = 0; t < frames; t++)
+            sum[t] = new double[states];
 
-            for (int t = 0; t < _timestep; t++)
+        var probs = new double[states];
+        foreach (var (offset, shift) in passes)
+        {
+            var input = shift == 0 ? features : ShiftBins(features, shift);
+            for (int start = offset; start < frames; start += _timestep)
             {
-                int dst = w * _timestep + t;
-                if (dst >= frames)
-                    break;
-                // Log-softmax keeps Viterbi's reward scale comparable
-                // across frames regardless of raw logit magnitudes.
-                var row = new float[_labels.Length];
-                double max = double.MinValue;
-                for (int c = 0; c < _labels.Length; c++)
-                    max = Math.Max(max, logits[0, t, c]);
-                double sum = 0;
-                for (int c = 0; c < _labels.Length; c++)
-                    sum += Math.Exp(logits[0, t, c] - max);
-                double logSum = max + Math.Log(sum);
-                for (int c = 0; c < _labels.Length; c++)
-                    row[c] = (float)(logits[0, t, c] - logSum);
-                result[dst] = row;
+                int valid = Math.Min(_timestep, frames - start);
+                var tensor = new DenseTensor<float>(new[] { 1, _timestep, CqtExtractor.Bins });
+                for (int t = 0; t < valid; t++)
+                    for (int b = 0; b < CqtExtractor.Bins; b++)
+                        tensor[0, t, b] = input[start + t][b];
+                // (tail window stays zero-padded, as in training)
+
+                using var output = _session.Run(new[]
+                {
+                    NamedOnnxValue.CreateFromTensor("features", tensor),
+                });
+                var logits = (DenseTensor<float>)output[0].Value;
+
+                for (int t = 0; t < valid; t++)
+                {
+                    double max = double.MinValue;
+                    for (int c = 0; c < states; c++)
+                        max = Math.Max(max, logits[0, t, c]);
+                    double total = 0;
+                    for (int c = 0; c < states; c++)
+                        total += probs[c] = Math.Exp(logits[0, t, c] - max);
+
+                    var row = sum[start + t];
+                    for (int c = 0; c < states; c++)
+                    {
+                        // Model heard audio `shift` semitones up, so its
+                        // root r is the true root r - shift.
+                        int dst = c;
+                        if (shift != 0 && c < qualities * 12)
+                        {
+                            int root = (c / qualities - shift + 12) % 12;
+                            dst = root * qualities + c % qualities;
+                        }
+                        row[dst] += probs[c] / total;
+                    }
+                    cover[start + t]++;
+                }
             }
         }
+
+        var result = new float[frames][];
+        for (int t = 0; t < frames; t++)
+        {
+            var row = new float[states];
+            for (int c = 0; c < states; c++)
+                row[c] = (float)Math.Log(sum[t][c] / cover[t] + 1e-12);
+            result[t] = row;
+        }
         return result;
+    }
+
+    /// <summary>CQT rolled by 2 bins per semitone (24 bins/octave);
+    /// vacated bins get the silence floor, as in training augmentation.</summary>
+    private static float[][] ShiftBins(float[][] features, int semitones)
+    {
+        int bins = CqtExtractor.Bins;
+        int delta = 2 * semitones;
+        var shifted = new float[features.Length][];
+        for (int t = 0; t < features.Length; t++)
+        {
+            var row = new float[bins];
+            Array.Fill(row, LogFloor);
+            for (int b = 0; b < bins; b++)
+            {
+                int src = b - delta;
+                if (src >= 0 && src < bins)
+                    row[b] = features[t][src];
+            }
+            shifted[t] = row;
+        }
+        return shifted;
     }
 
     private static int ArgMax(float[] row)

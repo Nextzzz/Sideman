@@ -314,7 +314,10 @@ public partial class SongViewModel : ObservableObject, IDisposable
         if (modelPath != null)
         {
             if (!_recognizers.TryGetValue(modelPath, out var neural))
-                _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath);
+                // Overlapping windows: +0.9..1.4pp on GuitarSet held-out for
+                // one extra pass (~0.25 s). Pitch TTA measured harmful for base.
+                _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath)
+                    { OverlapWindows = true };
             // (key prior and Viterbi smoothing are on by default inside)
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)
                             || audioPath.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)

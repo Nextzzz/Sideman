@@ -38,10 +38,13 @@ switch (args[0])
         double keyPrior = priorArg == null
             ? 0.5
             : double.Parse(priorArg.Split('=')[1], System.Globalization.CultureInfo.InvariantCulture);
+        bool overlap = args.Contains("--ovl");
+        var ttaArg = args.FirstOrDefault(a => a.StartsWith("--tta="));
+        int tta = ttaArg == null ? 0 : int.Parse(ttaArg.Split('=')[1]);
         if (neuralArg != null)
             AnalyzeNeural(target, neuralArg.Contains('=')
                 ? neuralArg.Split('=', 2)[1]
-                : Path.Combine("ml", "models", "btc_large_voca.onnx"), keyPrior);
+                : Path.Combine("ml", "models", "btc_large_voca.onnx"), keyPrior, overlap, tta);
         else
             Analyze(target);
         return 0;
@@ -99,6 +102,8 @@ switch (args[0])
             Options = options,
             NeuralModel = neuralModel,
             NeuralKeyPrior = Param("keyprior", 0.5),
+            NeuralOverlap = Param("ovl", 0) > 0,
+            NeuralTta = (int)Param("tta", 0),
             FilePrefixes = prefixes,
         };
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -141,12 +146,14 @@ switch (args[0])
         return 1;
 }
 
-static void AnalyzeNeural(string path, string modelPath, double keyPrior = 0.5)
+static void AnalyzeNeural(string path, string modelPath, double keyPrior = 0.5,
+                          bool overlap = false, int tta = 0)
 {
-    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}, keyprior {keyPrior}) {Path.GetFileName(path)}...");
+    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}, " +
+                      $"keyprior {keyPrior}, ovl {overlap}, tta {tta}) {Path.GetFileName(path)}...");
     var (samples, _) = AudioLoader.LoadMono(path, Strunika.Neural.CqtExtractor.SampleRate);
     using var recognizer = new Strunika.Neural.NeuralChordRecognizer(modelPath)
-        { KeyPriorStrength = keyPrior };
+        { KeyPriorStrength = keyPrior, OverlapWindows = overlap, PitchTtaSemitones = tta };
     var timeline = recognizer.Recognize(samples);
     Console.WriteLine($"key: {recognizer.DetectedKey ?? "не визначено"}");
     foreach (var segment in timeline)
