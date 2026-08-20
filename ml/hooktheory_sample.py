@@ -28,6 +28,16 @@ LABS = os.path.join(ROOT, "labs")
 
 NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
+# root_position_intervals -> model quality suffix ("" = major triad).
+# Second, full-vocabulary ground truth (labs_full/) in the model's own
+# label format, so flavor accuracy (Am vs Am7) can be scored too.
+INTERVALS_TO_SUFFIX = {
+    (3, 4): "min", (4, 3): "", (3, 3): "dim", (4, 4): "aug",
+    (3, 4, 2): "min6", (4, 3, 2): "maj6", (3, 4, 3): "min7", (3, 4, 4): "minmaj7",
+    (4, 3, 4): "maj7", (4, 3, 3): "7", (3, 3, 3): "dim7", (3, 3, 4): "hdim7",
+    (2, 5): "sus2", (5, 2): "sus4",
+}
+
 
 def majmin_label(event):
     intervals = event.get("root_position_intervals") or []
@@ -37,6 +47,16 @@ def majmin_label(event):
     if intervals[:2] == [3, 4]:
         return root + "m"
     return "X"  # dim/aug/sus/power — excluded from majmin scoring
+
+
+def full_label(event):
+    intervals = tuple(event.get("root_position_intervals") or ())
+    root = NAMES[event["root_pitch_class"] % 12]
+    for cut in (intervals, intervals[:3], intervals[:2]):
+        if cut in INTERVALS_TO_SUFFIX:
+            suffix = INTERVALS_TO_SUFFIX[cut]
+            return root + (":" + suffix if suffix else "")
+    return "X"
 
 
 def main(n_songs):
@@ -61,6 +81,7 @@ def main(n_songs):
 
     picked = sorted(best.values(), key=lambda c: c[1])[:n_songs]
     os.makedirs(LABS, exist_ok=True)
+    os.makedirs(LABS + "_full", exist_ok=True)
 
     with open(os.path.join(ROOT, "sample.csv"), "w", encoding="utf-8",
               newline="") as f:
@@ -72,7 +93,7 @@ def main(n_songs):
             beats = np.array(refined["beats"], dtype=float)
             times = np.array(refined["times"], dtype=float)
 
-            lines = []
+            lines, full_lines = [], []
             for event in entry["annotations"]["harmony"]:
                 onset, offset = event["onset"], event["offset"]
                 if onset < beats[0] or offset > beats[-1]:
@@ -80,10 +101,13 @@ def main(n_songs):
                 start = float(np.interp(onset, beats, times))
                 end = float(np.interp(offset, beats, times))
                 lines.append(f"{start:.3f} {end:.3f} {majmin_label(event)}")
+                full_lines.append(f"{start:.3f} {end:.3f} {full_label(event)}")
             if not lines:
                 continue
             with open(os.path.join(LABS, entry_id + ".lab"), "w") as lab:
                 lab.write("\n".join(lines))
+            with open(os.path.join(LABS + "_full", entry_id + ".lab"), "w") as lab:
+                lab.write("\n".join(full_lines))
 
             writer.writerow([entry_id, entry["hooktheory"]["artist"],
                              entry["hooktheory"]["song"],

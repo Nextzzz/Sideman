@@ -66,22 +66,26 @@ def main(limit, audio_dir="audio"):
 
     scored = {name: 0 for name in MODELS}
     correct = {name: 0 for name in MODELS}
+    full_scored = {name: 0 for name in MODELS}
+    full_correct = {name: 0 for name in MODELS}
     per_song = {name: [] for name in MODELS}
     done = 0
     for row in rows:
         audio_path = os.path.join(ROOT, audio_dir, row["id"] + ext)
         lab_path = os.path.join(ROOT, "labs", row["id"] + ".lab")
+        full_path = os.path.join(ROOT, "labs_full", row["id"] + ".lab")
         if not os.path.exists(audio_path) or not os.path.exists(lab_path):
             continue
         truth = read_lab(lab_path)
+        truth_full = read_lab(full_path) if os.path.exists(full_path) else []
         wav = load_audio(audio_path)
         if len(wav) < SAMPLE_RATE:
             continue
         features, spf = features_from_wav(wav)
 
         for name in MODELS:
-            pred = [to_majmin(l) or "X"
-                    for l in predict_labels(sessions[name], labels[name], features)]
+            raw = predict_labels(sessions[name], labels[name], features)
+            pred = [to_majmin(l) or "X" for l in raw]
             song_scored = song_correct = 0
             t = truth[0][0]
             while t < truth[-1][1]:
@@ -91,6 +95,13 @@ def main(limit, audio_dir="audio"):
                     song_scored += 1
                     if pred[idx] == label:
                         song_correct += 1
+                # Full vocabulary: exact quality match (Am7 != Am).
+                full = next((l for s, e, l in truth_full if s <= t < e), None)
+                if full is not None and full != "X":
+                    idx = min(int(t / spf), len(raw) - 1)
+                    full_scored[name] += 1
+                    if raw[idx] == full:
+                        full_correct[name] += 1
                 t += STEP
             scored[name] += song_scored
             correct[name] += song_correct
@@ -105,7 +116,9 @@ def main(limit, audio_dir="audio"):
 
     print(f"\n=== HookTheory benchmark ({audio_dir}), {done} songs ===")
     for name in MODELS:
-        print(f"{name}: WCSR (majmin) {correct[name] / max(scored[name], 1):.2%}")
+        print(f"{name}: WCSR (majmin) {correct[name] / max(scored[name], 1):.2%}"
+              + (f"   full-vocab {full_correct[name] / full_scored[name]:.2%}"
+                 if full_scored[name] else ""))
         print("  worst 3:", [(f"{a:.0%}", b)
                              for a, b in sorted(per_song[name])[:3]])
 
