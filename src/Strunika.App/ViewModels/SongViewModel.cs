@@ -84,6 +84,32 @@ public partial class SongViewModel : ObservableObject, IDisposable
     public string TransposeText => Transpose == 0 ? "0" : $"{Transpose:+#;-#}";
 
     private AnalysisResult? _lastResult;
+    private AnalysisResult? _lastResultB;
+    private bool _lastMicRecording;
+
+    // ---- Compare mode: a second model on the same audio, side by side,
+    // one player driving both timelines. ----
+
+    /// <summary>Engine for the right-hand timeline.</summary>
+    [ObservableProperty]
+    private string compareEngineMode = "Self";
+
+    [ObservableProperty]
+    private bool compareVisible;
+
+    [ObservableProperty]
+    private string engineNameA = "";
+
+    [ObservableProperty]
+    private string engineNameB = "";
+
+    [ObservableProperty]
+    private string nowChordB = "";
+
+    [ObservableProperty]
+    private SegmentRowVm? selectedRowB;
+
+    public ObservableCollection<SegmentRowVm> SegmentsB { get; } = new();
 
     partial void OnSimpleChordsChanged(bool value) => Rerender();
 
@@ -92,7 +118,49 @@ public partial class SongViewModel : ObservableObject, IDisposable
     private void Rerender()
     {
         if (_lastResult != null)
-            RenderSegments(_lastResult);
+            RenderSegments(_lastResult, Segments);
+        if (_lastResultB != null)
+            RenderSegments(_lastResultB, SegmentsB);
+    }
+
+    [RelayCommand]
+    private async Task CompareAsync()
+    {
+        if (_audioPath == null || _lastResult == null || Busy)
+        {
+            Status = "Спершу проаналізуй пісню, потім порівнюй.";
+            return;
+        }
+        Busy = true;
+        try
+        {
+            Status = $"Аналіз другою моделлю ({CompareEngineMode})…";
+            string path = _audioPath;
+            bool mic = _lastMicRecording;
+            var result = await Task.Run(() =>
+            {
+                var (samples44, _) = AudioLoader.LoadMono(path);
+                return Analyze(path, samples44, mic, CompareEngineMode);
+            });
+            Services.AnalysisStore.Save(new Services.SavedAnalysis(
+                Source.Trim(), path, DateTime.Now, result.Duration, result.Bpm, result.Engine,
+                result.Segments.Select(s => new Services.SavedSegment(s.Start, s.End, s.Chord)).ToList()));
+            _lastResultB = result;
+            EngineNameA = _lastResult.Engine;
+            EngineNameB = result.Engine;
+            RenderSegments(result, SegmentsB);
+            CompareVisible = true;
+            Status = "Готово: дві моделі поруч, плеєр спільний.";
+        }
+        catch (Exception ex)
+        {
+            FileLog.Error("Compare failed", ex);
+            Status = "Помилка порівняння: " + ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+        }
     }
 
     [RelayCommand]
@@ -176,7 +244,9 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
             Status = "Аналіз…";
             var (samples44, _) = await Task.Run(() => AudioLoader.LoadMono(path));
-            var result = await Task.Run(() => Analyze(path, samples44, micRecording: false));
+            string engine = EngineMode;
+            var result = await Task.Run(() => Analyze(path, samples44, false, engine));
+            _lastMicRecording = false;
             ShowAnalysis(result, path, Source.Trim());
             FileLog.Info($"Analyze done: {result.Segments.Count} segments, {result.Bpm:F0} BPM");
         }
@@ -227,7 +297,9 @@ public partial class SongViewModel : ObservableObject, IDisposable
             FileLog.Info($"Recording saved: {path}");
 
             Status = "Аналіз запису…";
-            var result = await Task.Run(() => Analyze(path, samples, micRecording: true));
+            string engine = EngineMode;
+            var result = await Task.Run(() => Analyze(path, samples, true, engine));
+            _lastMicRecording = true;
             ShowAnalysis(result, path, "запис із мікрофона");
             Status = $"Готово. Збережено: {path}";
         }
@@ -323,13 +395,32 @@ public partial class SongViewModel : ObservableObject, IDisposable
             }
             SelectedRow = current;
         }
+
+        // Compare timeline follows the same clock.
+        if (CompareVisible)
+        {
+            var currentB = SegmentsB.FirstOrDefault(
+                s => position >= s.StartSec && position < s.EndSec);
+            if (currentB != SelectedRowB)
+            {
+                if (SelectedRowB != null)
+                    SelectedRowB.IsCurrent = false;
+                if (currentB != null)
+                {
+                    currentB.IsCurrent = true;
+                    NowChordB = currentB.Chord;
+                }
+                SelectedRowB = currentB;
+            }
+        }
     }
 
     private sealed record AnalysisResult(
         List<(double Start, double End, string Chord)> Segments,
         double Bpm, double Duration, string Engine);
 
-    private AnalysisResult Analyze(string audioPath, float[] samples44, bool micRecording)
+    private AnalysisResult Analyze(string audioPath, float[] samples44, bool micRecording,
+                                   string engineMode)
     {
         double duration = samples44.Length / (double)MicrophoneCapture.SampleRate;
 
@@ -340,7 +431,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
         // guitar, so a wrong route costs ~nothing, a right one wins big.
         bool autoGuitar = micRecording || AudioDomainClassifier.IsGuitarLike(
             samples44, MicrophoneCapture.SampleRate);
-        (string? modelPath, string engineName) = EngineMode switch
+        (string? modelPath, string engineName) = engineMode switch
         {
             "Гітара" => (_guitarModelPath, "нейро · гітарна"),
             "Базова" => (_baseModelPath, "нейро · базова"),
@@ -361,7 +452,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             : null;
         if (ensemblePath != null)
             engineName += " + гітарна (ансамбль)";
-        if (EngineMode == "Авто" && !micRecording)
+        if (engineMode == "Авто" && !micRecording)
             FileLog.Info($"Auto domain probe: lowBand=" +
                 $"{AudioDomainClassifier.LowBandRatio(samples44, MicrophoneCapture.SampleRate):F4}" +
                 $" -> {engineName}");
@@ -430,7 +521,11 @@ public partial class SongViewModel : ObservableObject, IDisposable
         TimeText = $"0:00 / {FormatClock(result.Duration)}";
 
         _lastResult = result;
-        RenderSegments(result);
+        // A fresh analysis resets any comparison — it may be a different song.
+        _lastResultB = null;
+        SegmentsB.Clear();
+        CompareVisible = false;
+        RenderSegments(result, Segments);
         Summary = $"{Path.GetFileName(audioPath)}   •   {result.Duration:F0} с   •   " +
                   $"{result.Bpm:F0} BPM   •   {result.Engine}";
         Status = "Готово.";
@@ -438,11 +533,19 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
     /// <summary>Timeline rows from a result, optionally simplified; equal
     /// neighbours merge so "Am | Am7" becomes one "Am" row.</summary>
-    private void RenderSegments(AnalysisResult result)
+    private void RenderSegments(AnalysisResult result, ObservableCollection<SegmentRowVm> target)
     {
-        SelectedRow = null;
-        NowChord = "";
-        Segments.Clear();
+        if (target == Segments)
+        {
+            SelectedRow = null;
+            NowChord = "";
+        }
+        else
+        {
+            SelectedRowB = null;
+            NowChordB = "";
+        }
+        target.Clear();
         var rows = new List<(double Start, double End, string Chord)>();
         foreach (var (start, end, chord) in result.Segments)
         {
@@ -455,7 +558,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
         }
         foreach (var (start, end, chord) in rows)
         {
-            Segments.Add(new SegmentRowVm
+            target.Add(new SegmentRowVm
             {
                 Start = FormatTime(start),
                 End = FormatTime(end),

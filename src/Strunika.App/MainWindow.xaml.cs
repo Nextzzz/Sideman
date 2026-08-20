@@ -27,6 +27,12 @@ public partial class MainWindow : Window
             SongList.ScrollIntoView(e.AddedItems[0]);
     }
 
+    private void SongListB_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count > 0)
+            SongListB.ScrollIntoView(e.AddedItems[0]);
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         _viewModel.Dispose();

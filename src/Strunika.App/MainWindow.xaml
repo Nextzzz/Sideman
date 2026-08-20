@@ -30,6 +30,15 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <Style x:Key="ChordRow" TargetType="ListViewItem">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                    <Setter Property="Background" Value="#3A5C80"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="#2A2A33" Padding="10,8">
@@ -148,6 +157,13 @@
                         <Button DockPanel.Dock="Left" Content="{Binding Song.RecordButtonText}"
                                 Command="{Binding Song.ToggleRecordCommand}" Padding="14,6"
                                 VerticalAlignment="Top"/>
+                        <ComboBox DockPanel.Dock="Left" Width="90" Margin="14,0,0,0" VerticalAlignment="Top"
+                                  ItemsSource="{Binding Song.EngineModes}"
+                                  SelectedItem="{Binding Song.CompareEngineMode}"
+                                  ToolTip="Друга модель для порівняння на тій самій пісні."/>
+                        <Button DockPanel.Dock="Left" Content="Порівняти" Margin="6,0,0,0" Padding="12,6"
+                                VerticalAlignment="Top" Command="{Binding Song.CompareCommand}"
+                                ToolTip="Проганяє вже проаналізовану пісню другою моделлю і показує обидва таймлайни поруч. Плеєр один на обидва."/>
                         <Button DockPanel.Dock="Right" Content="Лог"
                                 Command="{Binding Song.OpenLogCommand}" Padding="10,6"
                                 Margin="8,0,0,0" VerticalAlignment="Top" Opacity="0.7"/>
@@ -170,6 +186,11 @@
                                    FontSize="26" FontWeight="Bold" Foreground="#6FB7FF"
                                    MinWidth="100" Margin="14,0" VerticalAlignment="Center"
                                    TextAlignment="Center"/>
+                        <TextBlock DockPanel.Dock="Left" Text="{Binding Song.NowChordB}"
+                                   FontSize="26" FontWeight="Bold" Foreground="#FFB86F"
+                                   MinWidth="100" Margin="0,0,14,0" VerticalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Visibility="{Binding Song.CompareVisible, Converter={StaticResource BoolToVis}}"/>
                         <TextBlock DockPanel.Dock="Right" Text="{Binding Song.TimeText}"
                                    VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.7"/>
                         <Slider Minimum="0" Maximum="{Binding Song.DurationSeconds}"
@@ -177,28 +198,51 @@
                                 VerticalAlignment="Center"/>
                     </DockPanel>
 
-                    <ListView Grid.Row="4" x:Name="SongList" ItemsSource="{Binding Song.Segments}"
-                              SelectedItem="{Binding Song.SelectedRow, Mode=TwoWay}"
-                              SelectionChanged="SongList_SelectionChanged"
-                              Background="#2A2A33" Foreground="#EAEAEA" BorderThickness="0">
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                        <Setter Property="Background" Value="#3A5C80"/>
-                                        <Setter Property="Foreground" Value="#FFFFFF"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ListView.ItemContainerStyle>
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Початок" Width="90" DisplayMemberBinding="{Binding Start}"/>
-                                <GridViewColumn Header="Кінець" Width="90" DisplayMemberBinding="{Binding End}"/>
-                                <GridViewColumn Header="Акорд" Width="140" DisplayMemberBinding="{Binding Chord}"/>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
+                    <Grid Grid.Row="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <DockPanel Grid.Column="0">
+                            <TextBlock DockPanel.Dock="Top" Text="{Binding Song.EngineNameA}"
+                                       Foreground="#6FB7FF" FontWeight="SemiBold" Margin="0,0,0,4"
+                                       Visibility="{Binding Song.CompareVisible, Converter={StaticResource BoolToVis}}"/>
+                            <ListView x:Name="SongList" ItemsSource="{Binding Song.Segments}"
+                                      SelectedItem="{Binding Song.SelectedRow, Mode=TwoWay}"
+                                      SelectionChanged="SongList_SelectionChanged"
+                                      ItemContainerStyle="{StaticResource ChordRow}"
+                                      Background="#2A2A33" Foreground="#EAEAEA" BorderThickness="0">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Початок" Width="90" DisplayMemberBinding="{Binding Start}"/>
+                                        <GridViewColumn Header="Кінець" Width="90" DisplayMemberBinding="{Binding End}"/>
+                                        <GridViewColumn Header="Акорд" Width="140" DisplayMemberBinding="{Binding Chord}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+
+                        <!-- Compare timeline: second model, same audio clock. -->
+                        <DockPanel Grid.Column="1" Margin="10,0,0,0"
+                                   Visibility="{Binding Song.CompareVisible, Converter={StaticResource BoolToVis}}">
+                            <TextBlock DockPanel.Dock="Top" Text="{Binding Song.EngineNameB}"
+                                       Foreground="#FFB86F" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <ListView x:Name="SongListB" ItemsSource="{Binding Song.SegmentsB}"
+                                      SelectedItem="{Binding Song.SelectedRowB, Mode=TwoWay}"
+                                      SelectionChanged="SongListB_SelectionChanged"
+                                      ItemContainerStyle="{StaticResource ChordRow}"
+                                      Background="#2A2A33" Foreground="#EAEAEA" BorderThickness="0">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Початок" Width="90" DisplayMemberBinding="{Binding Start}"/>
+                                        <GridViewColumn Header="Кінець" Width="90" DisplayMemberBinding="{Binding End}"/>
+                                        <GridViewColumn Header="Акорд" Width="140" DisplayMemberBinding="{Binding Chord}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </DockPanel>
+                    </Grid>
                 </Grid>
             </TabItem>
         </TabControl>
