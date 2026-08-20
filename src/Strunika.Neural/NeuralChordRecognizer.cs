@@ -17,11 +17,16 @@ public sealed record NeuralChordSegment(double Start, double End, string Label)
 public sealed class NeuralChordRecognizer : IDisposable
 {
     private readonly InferenceSession _session;
+    private readonly InferenceSession? _ensemble;
     private readonly CqtExtractor _cqt = new();
     private readonly string[] _labels;
     private readonly int _timestep;
 
-    public NeuralChordRecognizer(string onnxPath)
+    /// <param name="ensembleOnnxPath">Optional second model with the same
+    /// vocabulary; offline passes run both and average probabilities.
+    /// Measured +0.7pp over overlap alone (base+guitar2 on modern songs).
+    /// The live window path uses the primary model only.</param>
+    public NeuralChordRecognizer(string onnxPath, string? ensembleOnnxPath = null)
     {
         _session = new InferenceSession(onnxPath);
         string configPath = Path.ChangeExtension(onnxPath, ".json");
@@ -29,6 +34,15 @@ public sealed class NeuralChordRecognizer : IDisposable
         _labels = doc.RootElement.GetProperty("labels")
             .EnumerateArray().Select(e => e.GetString()!).ToArray();
         _timestep = doc.RootElement.GetProperty("timestep").GetInt32();
+
+        if (ensembleOnnxPath != null)
+        {
+            using var doc2 = JsonDocument.Parse(
+                File.ReadAllText(Path.ChangeExtension(ensembleOnnxPath, ".json")));
+            if (doc2.RootElement.GetProperty("labels").GetArrayLength() != _labels.Length)
+                throw new ArgumentException("ensemble model must share the vocabulary");
+            _ensemble = new InferenceSession(ensembleOnnxPath);
+        }
     }
 
     public IReadOnlyList<string> Labels => _labels;
@@ -122,7 +136,12 @@ public sealed class NeuralChordRecognizer : IDisposable
         for (int t = 0; t < frames; t++)
             sum[t] = new double[states];
 
+        var sessions = _ensemble == null
+            ? new[] { _session }
+            : new[] { _session, _ensemble };
+
         var probs = new double[states];
+        foreach (var session in sessions)
         foreach (var (offset, shift) in passes)
         {
             var input = shift == 0 ? features : ShiftBins(features, shift);
@@ -135,7 +154,7 @@ public sealed class NeuralChordRecognizer : IDisposable
                         tensor[0, t, b] = input[start + t][b];
                 // (tail window stays zero-padded, as in training)
 
-                using var output = _session.Run(new[]
+                using var output = session.Run(new[]
                 {
                     NamedOnnxValue.CreateFromTensor("features", tensor),
                 });
@@ -326,5 +345,9 @@ public sealed class NeuralChordRecognizer : IDisposable
         return merged;
     }
 
-    public void Dispose() => _session.Dispose();
+    public void Dispose()
+    {
+        _session.Dispose();
+        _ensemble?.Dispose();
+    }
 }

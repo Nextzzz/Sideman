@@ -306,6 +306,14 @@ public partial class SongViewModel : ObservableObject, IDisposable
                 ? (_guitarModelPath ?? _baseModelPath, "нейро · гітарна (авто)")
                 : (_baseModelPath, "нейро · базова (авто)"),
         };
+        // Ensemble only on the base route: base+guitar2 averaged gains
+        // +0.7pp on modern songs over overlap alone, but the same average
+        // costs guitar2 4pp on solo guitar — so mic/guitar routes run alone.
+        string? ensemblePath = modelPath == _baseModelPath && _guitarModelPath != modelPath
+            ? _guitarModelPath
+            : null;
+        if (ensemblePath != null)
+            engineName += " + гітарна (ансамбль)";
         if (EngineMode == "Авто" && !micRecording)
             FileLog.Info($"Auto domain probe: lowBand=" +
                 $"{AudioDomainClassifier.LowBandRatio(samples44, MicrophoneCapture.SampleRate):F4}" +
@@ -316,7 +324,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
             if (!_recognizers.TryGetValue(modelPath, out var neural))
                 // Overlapping windows: +0.9..1.4pp on GuitarSet held-out for
                 // one extra pass (~0.25 s). Pitch TTA measured harmful for base.
-                _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath)
+                _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath, ensemblePath)
                     { OverlapWindows = true };
             // (key prior and Viterbi smoothing are on by default inside)
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)

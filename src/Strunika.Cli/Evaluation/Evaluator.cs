@@ -36,6 +36,9 @@ public sealed class Evaluator
     public bool NeuralOverlap { get; init; }
     public int NeuralTta { get; init; }
 
+    /// <summary>Optional second ONNX model averaged with the first.</summary>
+    public string? NeuralEnsemble { get; init; }
+
     /// <summary>When set, only files starting with one of these prefixes
     /// are evaluated (e.g. ["04_","05_"] = held-out players).</summary>
     public string[]? FilePrefixes { get; init; }
@@ -57,7 +60,7 @@ public sealed class Evaluator
 
         using var neural = NeuralModel == null
             ? null
-            : new Strunika.Neural.NeuralChordRecognizer(NeuralModel)
+            : new Strunika.Neural.NeuralChordRecognizer(NeuralModel, NeuralEnsemble)
               {
                   KeyPriorStrength = NeuralKeyPrior,
                   OverlapWindows = NeuralOverlap,

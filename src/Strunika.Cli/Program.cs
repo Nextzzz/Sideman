@@ -41,10 +41,11 @@ switch (args[0])
         bool overlap = args.Contains("--ovl");
         var ttaArg = args.FirstOrDefault(a => a.StartsWith("--tta="));
         int tta = ttaArg == null ? 0 : int.Parse(ttaArg.Split('=')[1]);
+        string? ensemble = args.FirstOrDefault(a => a.StartsWith("--ens="))?.Split('=', 2)[1];
         if (neuralArg != null)
             AnalyzeNeural(target, neuralArg.Contains('=')
                 ? neuralArg.Split('=', 2)[1]
-                : Path.Combine("ml", "models", "btc_large_voca.onnx"), keyPrior, overlap, tta);
+                : Path.Combine("ml", "models", "btc_large_voca.onnx"), keyPrior, overlap, tta, ensemble);
         else
             Analyze(target);
         return 0;
@@ -104,6 +105,7 @@ switch (args[0])
             NeuralKeyPrior = Param("keyprior", 0.5),
             NeuralOverlap = Param("ovl", 0) > 0,
             NeuralTta = (int)Param("tta", 0),
+            NeuralEnsemble = args.FirstOrDefault(a => a.StartsWith("--ens="))?.Split('=', 2)[1],
             FilePrefixes = prefixes,
         };
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -147,12 +149,13 @@ switch (args[0])
 }
 
 static void AnalyzeNeural(string path, string modelPath, double keyPrior = 0.5,
-                          bool overlap = false, int tta = 0)
+                          bool overlap = false, int tta = 0, string? ensemble = null)
 {
-    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}, " +
-                      $"keyprior {keyPrior}, ovl {overlap}, tta {tta}) {Path.GetFileName(path)}...");
+    Console.WriteLine($"Analyzing (neural: {Path.GetFileNameWithoutExtension(modelPath)}" +
+                      (ensemble == null ? "" : $" + {Path.GetFileNameWithoutExtension(ensemble)}") +
+                      $", keyprior {keyPrior}, ovl {overlap}, tta {tta}) {Path.GetFileName(path)}...");
     var (samples, _) = AudioLoader.LoadMono(path, Strunika.Neural.CqtExtractor.SampleRate);
-    using var recognizer = new Strunika.Neural.NeuralChordRecognizer(modelPath)
+    using var recognizer = new Strunika.Neural.NeuralChordRecognizer(modelPath, ensemble)
         { KeyPriorStrength = keyPrior, OverlapWindows = overlap, PitchTtaSemitones = tta };
     var timeline = recognizer.Recognize(samples);
     Console.WriteLine($"key: {recognizer.DetectedKey ?? "не визначено"}");
