@@ -15,7 +15,8 @@ import time
 from billboard_collect import download
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, "..", "datasets", "hooktheory"))
+ROOT = os.path.normpath(os.path.join(
+    HERE, "..", "datasets", "hooktheory", os.environ.get("HOOK_SUBSET", "")))
 AUDIO_DIR = os.path.join(ROOT, "audio")
 
 

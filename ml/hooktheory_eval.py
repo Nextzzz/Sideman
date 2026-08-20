@@ -25,7 +25,10 @@ from btc_features import features_from_wav, TIMESTEP, SAMPLE_RATE
 from eval_guitarset import to_majmin, predict_labels
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, "..", "datasets", "hooktheory"))
+# HOOK_SUBSET=valid switches every eval/collect script to the permanent
+# evaluation-only pool (datasets/hooktheory/valid); default = TEST pool.
+ROOT = os.path.normpath(os.path.join(
+    HERE, "..", "datasets", "hooktheory", os.environ.get("HOOK_SUBSET", "")))
 TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Strunika", "tools")
 FFMPEG = os.path.join(TOOLS, "ffmpeg.exe")
 

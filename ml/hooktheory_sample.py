@@ -12,7 +12,11 @@ Output:
     datasets/hooktheory/labs/<id>.lab        absolute-time truth labels
 
 Run:
-    .venv/Scripts/python hooktheory_sample.py [n_songs=200]
+    .venv/Scripts/python hooktheory_sample.py [n_songs=200] [TEST|VALID]
+
+TEST (default) writes to datasets/hooktheory/ — our original benchmark +
+training pool. VALID writes to datasets/hooktheory/valid/ — a permanent
+evaluation-only pool that no model is ever trained on.
 """
 import csv
 import gzip
@@ -24,7 +28,9 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", "datasets", "hooktheory"))
-LABS = os.path.join(ROOT, "labs")
+SPLIT = sys.argv[2].upper() if len(sys.argv) > 2 else "TEST"
+OUT_ROOT = ROOT if SPLIT == "TEST" else os.path.join(ROOT, SPLIT.lower())
+LABS = os.path.join(OUT_ROOT, "labs")
 
 NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -68,7 +74,7 @@ def main(n_songs):
     for entry_id, entry in data.items():
         tags = set(entry.get("tags", []))
         annotations = entry.get("annotations") or {}
-        if entry.get("split") != "TEST":
+        if entry.get("split") != SPLIT:
             continue
         if not {"AUDIO_AVAILABLE", "REFINED_ALIGNMENT", "HARMONY"} <= tags:
             continue
@@ -83,7 +89,8 @@ def main(n_songs):
     os.makedirs(LABS, exist_ok=True)
     os.makedirs(LABS + "_full", exist_ok=True)
 
-    with open(os.path.join(ROOT, "sample.csv"), "w", encoding="utf-8",
+    os.makedirs(OUT_ROOT, exist_ok=True)
+    with open(os.path.join(OUT_ROOT, "sample.csv"), "w", encoding="utf-8",
               newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["id", "artist", "song", "yt_id", "yt_duration",
@@ -114,7 +121,7 @@ def main(n_songs):
                              entry["youtube"]["id"],
                              f"{entry['youtube']['duration']:.0f}",
                              f"{times[0]:.2f}", f"{times[-1]:.2f}"])
-    print(f"sampled {len(picked)} songs -> sample.csv + labs/")
+    print(f"sampled {len(picked)} {SPLIT} songs -> {OUT_ROOT}")
 
 
 if __name__ == "__main__":
