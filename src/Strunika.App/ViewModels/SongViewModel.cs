@@ -445,13 +445,20 @@ public partial class SongViewModel : ObservableObject, IDisposable
         // Ensemble only on the base route: base+guitar2 averaged gains
         // +0.7pp on modern songs over overlap alone, but the same average
         // costs guitar2 4pp on solo guitar — so mic/guitar routes run alone.
-        string? ensemblePath = UseEnsemble
-                               && (modelPath == _baseModelPath || modelPath == _selfModelPath)
-                               && _guitarModelPath != modelPath
-            ? _guitarModelPath
-            : null;
+        // Benchmark-219 (ovl+Viterbi): base+self 73.31 > base+guitar2 72.78
+        // > base 72.19 — the two "schools" err differently. Base and self
+        // partner each other; guitar2 remains the fallback partner.
+        string? ensemblePath = null;
+        if (UseEnsemble && modelPath == _baseModelPath)
+            ensemblePath = _selfModelPath ?? _guitarModelPath;
+        else if (UseEnsemble && modelPath == _selfModelPath)
+            ensemblePath = _baseModelPath;
+        if (ensemblePath == modelPath)
+            ensemblePath = null;
         if (ensemblePath != null)
-            engineName += " + гітарна (ансамбль)";
+            engineName += ensemblePath == _selfModelPath ? " + self (ансамбль)"
+                        : ensemblePath == _baseModelPath ? " + базова (ансамбль)"
+                        : " + гітарна (ансамбль)";
         if (engineMode == "Авто" && !micRecording)
             FileLog.Info($"Auto domain probe: lowBand=" +
                 $"{AudioDomainClassifier.LowBandRatio(samples44, MicrophoneCapture.SampleRate):F4}" +
