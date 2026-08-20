@@ -96,8 +96,9 @@ def vote(path_labels, probs, fam_matrix, threshold):
     return out
 
 
-def score(pred, truth_full, spf):
-    scored = correct = 0
+def score(pred, truth_full, spf, baseline=None):
+    """(scored, correct, changed-vs-baseline) over annotated frames only."""
+    scored = correct = changed = 0
     t = truth_full[0][0]
     while t < truth_full[-1][1]:
         full = next((l for s, e, l in truth_full if s <= t < e), None)
@@ -105,8 +106,10 @@ def score(pred, truth_full, spf):
             idx = min(int(t / spf), len(pred) - 1)
             scored += 1
             correct += pred[idx] == full
+            if baseline is not None and pred[idx] != baseline[idx]:
+                changed += 1
         t += STEP
-    return scored, correct
+    return scored, correct, changed
 
 
 def main(rows_limit):
@@ -141,13 +144,12 @@ def main(rows_limit):
 
         preds = {"viterbi": base_labels}
         for th in (0.85, 0.90, 0.95):
-            voted = vote(base_labels, probs, fam_matrix, th)
-            preds[f"vote@{th:.2f}"] = voted
-            changed[f"vote@{th:.2f}"] += sum(a != b for a, b in zip(voted, base_labels))
+            preds[f"vote@{th:.2f}"] = vote(base_labels, probs, fam_matrix, th)
         for v in variants:
-            s, c = score(preds[v], truth_full, spf)
+            s, c, ch = score(preds[v], truth_full, spf, base_labels)
             scored[v] += s
             correct[v] += c
+            changed[v] += ch
         done += 1
         if done % 20 == 0:
             print(f"{done} songs: " + "  ".join(
@@ -155,7 +157,8 @@ def main(rows_limit):
 
     print(f"\n=== repetition voting (full-vocab accuracy), {done} benchmark songs ===")
     for v in variants:
-        print(f"{v:10} {correct[v] / max(scored[v], 1):.2%}   frames changed: {changed[v]}")
+        print(f"{v:10} {correct[v] / max(scored[v], 1):.2%}   "
+              f"annotated frames changed: {changed[v]} of {scored[v]}")
 
 
 if __name__ == "__main__":
