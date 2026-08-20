@@ -22,8 +22,14 @@ from chordmini_eval import load_chordmini
 from hooktheory_eval import load_audio
 
 
+FLAT_TO_SHARP = {"Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#",
+                 "Cb": "B", "Fb": "E"}
+
+
 def pretty(label):
+    """Match the app's display exactly (ChordLabels.Pretty + sharp roots)."""
     root, _, quality = label.partition(":")
+    root = FLAT_TO_SHARP.get(root, root)
     return root + {
         "": "", "maj": "", "min": "m", "dim": "dim", "aug": "aug",
         "min6": "m6", "maj6": "6", "min7": "m7", "minmaj7": "mMaj7",
