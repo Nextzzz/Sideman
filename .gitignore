@@ -22,3 +22,4 @@ ml/bundle_guitar2/
 ml/cache_guitar_aug/
 ml/.cache_torch/
 ml/bundle_hook/
+ml/bundle_pseudo/
