@@ -94,8 +94,12 @@ def main(rows_limit):
     with open(os.path.join(ROOT, "sample.csv"), encoding="utf-8") as f:
         rows = list(csv.DictReader(f))[:rows_limit]
 
-    variants = ["base", "base+ovl", "base+tta", "base+ovl+tta",
-                "guitar2", "ens", "ens+ovl+tta"]
+    # --lite: TTA measured harmful (-7pp on modern songs) — skip its passes
+    # and answer the remaining question: does overlap stack with the ensemble?
+    lite = "--lite" in sys.argv
+    variants = (["base", "base+ovl", "ens", "ens+ovl"] if lite else
+                ["base", "base+ovl", "base+tta", "base+ovl+tta",
+                 "guitar2", "ens", "ens+ovl+tta"])
     scored = {v: 0 for v in variants}
     correct = {v: 0 for v in variants}
     done = 0
@@ -115,18 +119,23 @@ def main(rows_limit):
             s = sessions[name]
             p[short + "0"] = probs_pass(s, features, 0, 0)
             p[short + "54"] = probs_pass(s, features, T // 2, 0)
-            p[short + "+1"] = probs_pass(s, features, 0, 1)
-            p[short + "-1"] = probs_pass(s, features, 0, -1)
+            if not lite:
+                p[short + "+1"] = probs_pass(s, features, 0, 1)
+                p[short + "-1"] = probs_pass(s, features, 0, -1)
 
         preds = {
             "base": combine([p["b0"]]),
             "base+ovl": combine([p["b0"], p["b54"]]),
-            "base+tta": combine([p["b0"], p["b+1"], p["b-1"]]),
-            "base+ovl+tta": combine([p["b0"], p["b54"], p["b+1"], p["b-1"]]),
-            "guitar2": combine([p["g0"]]),
             "ens": combine([p["b0"], p["g0"]]),
-            "ens+ovl+tta": combine(list(p.values())),
+            "ens+ovl": combine([p["b0"], p["b54"], p["g0"], p["g54"]]),
         }
+        if not lite:
+            preds.update({
+                "base+tta": combine([p["b0"], p["b+1"], p["b-1"]]),
+                "base+ovl+tta": combine([p["b0"], p["b54"], p["b+1"], p["b-1"]]),
+                "guitar2": combine([p["g0"]]),
+                "ens+ovl+tta": combine(list(p.values())),
+            })
         pred_labels = {v: [to_majmin(labels[i]) or "X" for i in pr.argmax(axis=1)]
                        for v, pr in preds.items()}
 
@@ -152,4 +161,5 @@ def main(rows_limit):
 
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 250)
+    numeric = [a for a in sys.argv[1:] if a.isdigit()]
+    main(int(numeric[0]) if numeric else 250)
