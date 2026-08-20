@@ -69,6 +69,11 @@ public partial class SongViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool simpleChords;
 
+    /// <summary>A/B switch: base route with (default) or without the
+    /// guitar2 ensemble. Off = single model, as before.</summary>
+    [ObservableProperty]
+    private bool useEnsemble = true;
+
     /// <summary>Display transposition in semitones (capo / singer's key):
     /// every shown chord moves by this amount. Display-only.</summary>
     [ObservableProperty]
@@ -343,7 +348,8 @@ public partial class SongViewModel : ObservableObject, IDisposable
         // Ensemble only on the base route: base+guitar2 averaged gains
         // +0.7pp on modern songs over overlap alone, but the same average
         // costs guitar2 4pp on solo guitar — so mic/guitar routes run alone.
-        string? ensemblePath = modelPath == _baseModelPath && _guitarModelPath != modelPath
+        string? ensemblePath = UseEnsemble && modelPath == _baseModelPath
+                               && _guitarModelPath != modelPath
             ? _guitarModelPath
             : null;
         if (ensemblePath != null)
@@ -355,10 +361,11 @@ public partial class SongViewModel : ObservableObject, IDisposable
 
         if (modelPath != null)
         {
-            if (!_recognizers.TryGetValue(modelPath, out var neural))
+            string cacheKey = modelPath + "|" + ensemblePath;
+            if (!_recognizers.TryGetValue(cacheKey, out var neural))
                 // Overlapping windows: +0.9..1.4pp on GuitarSet held-out for
                 // one extra pass (~0.25 s). Pitch TTA measured harmful for base.
-                _recognizers[modelPath] = neural = new NeuralChordRecognizer(modelPath, ensemblePath)
+                _recognizers[cacheKey] = neural = new NeuralChordRecognizer(modelPath, ensemblePath)
                     { OverlapWindows = true };
             // (key prior and Viterbi smoothing are on by default inside)
             var samples22 = audioPath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)

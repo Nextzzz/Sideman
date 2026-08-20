@@ -120,6 +120,10 @@
                                   ItemsSource="{Binding Song.EngineModes}"
                                   SelectedItem="{Binding Song.EngineMode}"
                                   ToolTip="Модель аналізу: Авто — записи через гітарну, файли/YouTube через базову. Для файлів із соло-гітарою обери «Гітара»."/>
+                        <CheckBox DockPanel.Dock="Right" Content="Ансамбль" Margin="8,0,0,0"
+                                  VerticalAlignment="Center" Foreground="#EAEAEA"
+                                  IsChecked="{Binding Song.UseEnsemble}"
+                                  ToolTip="Базова модель у парі з гітарною (усереднення). Вимкни для порівняння з одиночною базовою."/>
                         <CheckBox DockPanel.Dock="Right" Content="Прості акорди" Margin="8,0,0,0"
                                   VerticalAlignment="Center" Foreground="#EAEAEA"
                                   IsChecked="{Binding Song.SimpleChords}"
