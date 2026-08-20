@@ -24,6 +24,22 @@ public class ChordLabelsTests
         Assert.That(simplified, Is.EqualTo(expected));
     }
 
+    [TestCase("Am7", 2, "Bm7")]
+    [TestCase("F#", -1, "F")]
+    [TestCase("C", -1, "B")]
+    [TestCase("B", 1, "C")]
+    [TestCase("G#m7b5", 12, "G#m7b5")]
+    [TestCase("Dsus4", -14, "Csus4")]
+    [TestCase("—", 3, "—")]
+    public void Transpose_moves_root_keeps_quality(string pretty, int semitones, string expected)
+    {
+        // Act
+        string moved = ChordLabels.Transpose(pretty, semitones);
+
+        // Assert
+        Assert.That(moved, Is.EqualTo(expected));
+    }
+
     [TestCase("C:maj", "C")]
     [TestCase("A:min7", "Am7")]
     [TestCase("F#:hdim7", "F#m7b5")]

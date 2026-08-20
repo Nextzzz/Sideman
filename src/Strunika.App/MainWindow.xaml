@@ -124,6 +124,15 @@
                                   VerticalAlignment="Center" Foreground="#EAEAEA"
                                   IsChecked="{Binding Song.SimpleChords}"
                                   ToolTip="Показувати тризвуки замість септакордів і sus (Am7 → Am, Cmaj7 → C). Лише відображення — аналіз не змінюється."/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Транспонування відображення в півтонах (каподастр / зручна тональність). Лише відображення.">
+                            <TextBlock Text="Тон." VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <Button Content="−" Command="{Binding Song.TransposeDownCommand}" Padding="8,2"/>
+                            <Button Content="{Binding Song.TransposeText}" Command="{Binding Song.TransposeResetCommand}"
+                                    Padding="6,2" MinWidth="30" ToolTip="Скинути до 0"/>
+                            <Button Content="+" Command="{Binding Song.TransposeUpCommand}" Padding="8,2"/>
+                        </StackPanel>
                         <Button DockPanel.Dock="Right" Content="Огляд…"
                                 Command="{Binding Song.BrowseCommand}" Padding="14,6" Margin="8,0,0,0"/>
                         <TextBox Text="{Binding Song.Source, UpdateSourceTrigger=PropertyChanged}"

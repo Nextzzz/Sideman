@@ -69,13 +69,34 @@ public partial class SongViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool simpleChords;
 
+    /// <summary>Display transposition in semitones (capo / singer's key):
+    /// every shown chord moves by this amount. Display-only.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TransposeText))]
+    private int transpose;
+
+    public string TransposeText => Transpose == 0 ? "0" : $"{Transpose:+#;-#}";
+
     private AnalysisResult? _lastResult;
 
-    partial void OnSimpleChordsChanged(bool value)
+    partial void OnSimpleChordsChanged(bool value) => Rerender();
+
+    partial void OnTransposeChanged(int value) => Rerender();
+
+    private void Rerender()
     {
         if (_lastResult != null)
             RenderSegments(_lastResult);
     }
+
+    [RelayCommand]
+    private void TransposeUp() => Transpose = Transpose >= 11 ? -11 : Transpose + 1;
+
+    [RelayCommand]
+    private void TransposeDown() => Transpose = Transpose <= -11 ? 11 : Transpose - 1;
+
+    [RelayCommand]
+    private void TransposeReset() => Transpose = 0;
 
     [ObservableProperty]
     private bool playerAvailable;
@@ -412,6 +433,7 @@ public partial class SongViewModel : ObservableObject, IDisposable
         foreach (var (start, end, chord) in result.Segments)
         {
             string shown = SimpleChords ? ChordLabels.Simplify(chord) : chord;
+            shown = ChordLabels.Transpose(shown, Transpose);
             if (rows.Count > 0 && rows[^1].Chord == shown)
                 rows[^1] = (rows[^1].Start, end, shown);
             else
