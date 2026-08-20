@@ -25,6 +25,9 @@
     <Content Include="..\..\ml\models\btc_large_voca.json" Link="models\btc_large_voca.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\ml\models\btc_guitar2.onnx" Link="models\btc_guitar2.onnx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\ml\models\btc_guitar2.json" Link="models\btc_guitar2.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Self-trained candidate (clean pseudo-labels): wildcard so the build works before it exists. -->
+    <Content Include="..\..\ml\models\btc_self.onn*" Link="models\btc_self.onnx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\ml\models\btc_self.jso*" Link="models\btc_self.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

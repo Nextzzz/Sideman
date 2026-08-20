@@ -123,7 +123,7 @@
                         <CheckBox DockPanel.Dock="Right" Content="Ансамбль" Margin="8,0,0,0"
                                   VerticalAlignment="Center" Foreground="#EAEAEA"
                                   IsChecked="{Binding Song.UseEnsemble}"
-                                  ToolTip="Базова модель у парі з гітарною (усереднення). Вимкни для порівняння з одиночною базовою."/>
+                                  ToolTip="Базова або Self у парі з гітарною (усереднення). Вимкни для порівняння з одиночною моделлю."/>
                         <CheckBox DockPanel.Dock="Right" Content="Прості акорди" Margin="8,0,0,0"
                                   VerticalAlignment="Center" Foreground="#EAEAEA"
                                   IsChecked="{Binding Song.SimpleChords}"
