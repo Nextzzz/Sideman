@@ -27,12 +27,17 @@ import numpy as np
 from btc_features import features_from_wav, TIMESTEP, SAMPLE_RATE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, "..", "datasets", "hooktheory"))
-OUT = os.path.join(HERE, "bundle_hook", "data")
+# HOOK_SUBSET=train → datasets/hooktheory/train (the full TRAIN split,
+# nothing reserved: BENCH_ROWS=0); default = TEST pool with 250 benchmark rows.
+SUBSET = os.environ.get("HOOK_SUBSET", "")
+ROOT = os.path.normpath(os.path.join(HERE, "..", "datasets", "hooktheory", SUBSET))
+OUT = os.path.join(HERE, "bundle_hook" + (f"_{SUBSET}" if SUBSET else ""), "data")
+DATA_JSON = os.path.normpath(os.path.join(HERE, "..", "datasets", "hooktheory", "Hooktheory.json.gz"))
 TOOLS = os.path.join(os.environ["LOCALAPPDATA"], "Strunika", "tools")
 FFMPEG = os.path.join(TOOLS, "ffmpeg.exe")
 
-BENCH_ROWS = 250  # sample.csv rows reserved for the benchmark, forever
+BENCH_ROWS = int(os.environ.get("BENCH_ROWS", "0" if SUBSET else "250"))
+STORE_DTYPE = np.float16 if SUBSET else np.float32  # full split: keep the bundle small
 X_IDX, N_IDX = 168, 169
 LOG_FLOOR = float(np.log(1e-6))
 
@@ -93,8 +98,7 @@ def segment_windows(features, spf, seg_events):
 
 
 def main():
-    with gzip.open(os.path.join(ROOT, "Hooktheory.json.gz"), "rt",
-                   encoding="utf-8") as f:
+    with gzip.open(DATA_JSON, "rt", encoding="utf-8") as f:
         data = json.load(f)
 
     with open(os.path.join(ROOT, "sample.csv"), encoding="utf-8") as f:
@@ -155,7 +159,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for name, (xs, ys, ms) in packs.items():
         np.savez_compressed(os.path.join(OUT, f"hook_{name}.npz"),
-                            x=np.stack(xs), y=np.stack(ys), m=np.stack(ms))
+                            x=np.stack(xs).astype(STORE_DTYPE), y=np.stack(ys), m=np.stack(ms))
         print(f"hook_{name}.npz: {len(xs)} windows", flush=True)
     print(f"DONE: {used_songs} songs, {used_segments} segments", flush=True)
 
